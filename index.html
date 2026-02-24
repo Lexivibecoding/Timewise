@@ -3608,16 +3608,23 @@
               return;
             }
 
+            // Deduplicate: use recurringEventId for recurring events, own id for single events
+            const deleteIdSet = new Set();
+            allEvents.forEach(event => {
+              deleteIdSet.add(event.recurringEventId || event.id);
+            });
+            const uniqueDeleteIds = [...deleteIdSet];
+
             let deleted = 0;
             let failed = 0;
 
             // Delete events in batches of 10 for better performance
-            for (let i = 0; i < allEvents.length; i += 10) {
-              const batch = allEvents.slice(i, i + 10);
+            for (let i = 0; i < uniqueDeleteIds.length; i += 10) {
+              const batch = uniqueDeleteIds.slice(i, i + 10);
               const results = await Promise.allSettled(
-                batch.map(event =>
+                batch.map(eventId =>
                   fetch(
-                    `https://www.googleapis.com/calendar/v3/calendars/primary/events/${event.id}`,
+                    `https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`,
                     {
                       method: 'DELETE',
                       headers: {
@@ -3646,7 +3653,7 @@
               `📊 Summary:\n` +
               `• Deleted: ${deleted} events\n` +
               `• Failed: ${failed} events\n` +
-              `• Total processed: ${allEvents.length} events\n\n` +
+              `• Total processed: ${uniqueDeleteIds.length} events\n\n` +
               `Your Google Calendar is now empty.`
             );
           } catch (error) {
@@ -3707,7 +3714,7 @@
               const url = 'https://www.googleapis.com/calendar/v3/calendars/primary/events?' +
                 `timeMin=${startDate.toISOString()}&` +
                 `timeMax=${endDate.toISOString()}&` +
-                `maxResults=2500` +
+                `maxResults=2500&singleEvents=true` +
                 (pageToken ? `&pageToken=${pageToken}` : '');
 
               const response = await fetch(url, {
@@ -3725,7 +3732,7 @@
               pageToken = data.nextPageToken || null;
             } while (pageToken);
 
-            // Filter out cancelled events which can't be deleted
+            // Filter out cancelled events
             allEvents = allEvents.filter(e => e.status !== 'cancelled');
 
             if (allEvents.length === 0) {
@@ -3734,10 +3741,22 @@
               return;
             }
 
+            // Deduplicate: for recurring instances use recurringEventId (parent),
+            // for single events use their own id. This avoids trying to delete
+            // synthetic instance IDs that the API rejects.
+            const deleteIdSet = new Set();
+            allEvents.forEach(event => {
+              deleteIdSet.add(event.recurringEventId || event.id);
+            });
+            const uniqueDeleteIds = [...deleteIdSet];
+
             // Confirm with event count
             if (!confirm(
-              `Found ${allEvents.length} event(s) between ${startLabel} and ${endLabel}.\n\n` +
-              `Delete all ${allEvents.length} events? This cannot be undone.`
+              `Found ${allEvents.length} event(s) between ${startLabel} and ${endLabel}` +
+              (uniqueDeleteIds.length !== allEvents.length
+                ? ` (${uniqueDeleteIds.length} unique, including recurring series)`
+                : '') +
+              `.\n\nDelete all? This cannot be undone.`
             )) {
               setSyncStatus('connected');
               return;
@@ -3746,12 +3765,12 @@
             let deleted = 0;
             let failed = 0;
 
-            for (let i = 0; i < allEvents.length; i += 10) {
-              const batch = allEvents.slice(i, i + 10);
+            for (let i = 0; i < uniqueDeleteIds.length; i += 10) {
+              const batch = uniqueDeleteIds.slice(i, i + 10);
               const results = await Promise.allSettled(
-                batch.map(event =>
+                batch.map(eventId =>
                   fetch(
-                    `https://www.googleapis.com/calendar/v3/calendars/primary/events/${event.id}`,
+                    `https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`,
                     {
                       method: 'DELETE',
                       headers: {
@@ -3780,7 +3799,7 @@
               `📊 Summary:\n` +
               `• Deleted: ${deleted} events\n` +
               `• Failed: ${failed} events\n` +
-              `• Total processed: ${allEvents.length} events`
+              `• Total processed: ${uniqueDeleteIds.length} events`
             );
           } catch (error) {
             console.error('Clear Calendar by range error:', error);
