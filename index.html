@@ -3680,9 +3680,9 @@
             return;
           }
 
-          const startDate = new Date(clearRangeStart);
-          const endDate = new Date(clearRangeEnd);
-          endDate.setHours(23, 59, 59, 999);
+          // Parse as local dates (not UTC) by appending T00:00:00
+          const startDate = new Date(clearRangeStart + 'T00:00:00');
+          const endDate = new Date(clearRangeEnd + 'T23:59:59');
 
           if (endDate < startDate) {
             alert('End date must be after start date.');
@@ -3710,12 +3710,16 @@
             let allEvents = [];
             let pageToken = null;
 
+            console.log('[TimeWise] Clearing range:', startDate.toISOString(), 'to', endDate.toISOString());
+
             do {
               const url = 'https://www.googleapis.com/calendar/v3/calendars/primary/events?' +
                 `timeMin=${startDate.toISOString()}&` +
                 `timeMax=${endDate.toISOString()}&` +
                 `maxResults=2500&singleEvents=true` +
                 (pageToken ? `&pageToken=${pageToken}` : '');
+
+              console.log('[TimeWise] Fetching:', url);
 
               const response = await fetch(url, {
                 headers: {
@@ -3724,16 +3728,20 @@
               });
 
               if (!response.ok) {
-                throw new Error('Failed to fetch Google Calendar events');
+                const errText = await response.text();
+                console.error('[TimeWise] API error:', response.status, errText);
+                throw new Error(`Failed to fetch Google Calendar events: ${response.status}`);
               }
 
               const data = await response.json();
+              console.log('[TimeWise] Fetched', (data.items || []).length, 'events');
               allEvents = allEvents.concat(data.items || []);
               pageToken = data.nextPageToken || null;
             } while (pageToken);
 
             // Filter out cancelled events
             allEvents = allEvents.filter(e => e.status !== 'cancelled');
+            console.log('[TimeWise] After filtering cancelled:', allEvents.length, 'events');
 
             if (allEvents.length === 0) {
               setSyncStatus('connected');
