@@ -3772,42 +3772,53 @@
 
             let deleted = 0;
             let failed = 0;
+            const failDetails = [];
+
+            console.log('[TimeWise] Deleting', uniqueDeleteIds.length, 'unique event IDs:', uniqueDeleteIds);
 
             for (let i = 0; i < uniqueDeleteIds.length; i += 10) {
               const batch = uniqueDeleteIds.slice(i, i + 10);
               const results = await Promise.allSettled(
-                batch.map(eventId =>
-                  fetch(
-                    `https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`,
-                    {
-                      method: 'DELETE',
-                      headers: {
-                        'Authorization': `Bearer ${googleAccessToken}`
-                      }
+                batch.map(async (eventId) => {
+                  const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`;
+                  console.log('[TimeWise] DELETE', url);
+                  const res = await fetch(url, {
+                    method: 'DELETE',
+                    headers: {
+                      'Authorization': `Bearer ${googleAccessToken}`
                     }
-                  ).then(res => {
-                    if (res.ok || res.status === 410) {
-                      deleted++;
-                    } else {
-                      failed++;
-                    }
-                  })
-                )
+                  });
+                  console.log('[TimeWise] DELETE response:', eventId, res.status);
+                  if (res.ok || res.status === 410 || res.status === 204) {
+                    deleted++;
+                  } else {
+                    const errBody = await res.text().catch(() => '');
+                    console.error('[TimeWise] DELETE failed:', eventId, res.status, errBody);
+                    failDetails.push(`${eventId}: ${res.status}`);
+                    failed++;
+                  }
+                })
               );
 
               results.forEach(r => {
-                if (r.status === 'rejected') failed++;
+                if (r.status === 'rejected') {
+                  console.error('[TimeWise] DELETE rejected:', r.reason);
+                  failed++;
+                }
               });
             }
 
             setSyncStatus('connected');
+
+            console.log('[TimeWise] Delete summary - deleted:', deleted, 'failed:', failed, 'details:', failDetails);
 
             alert(
               `✅ Google Calendar Cleared for ${startLabel} — ${endLabel}!\n\n` +
               `📊 Summary:\n` +
               `• Deleted: ${deleted} events\n` +
               `• Failed: ${failed} events\n` +
-              `• Total processed: ${uniqueDeleteIds.length} events`
+              `• Total processed: ${uniqueDeleteIds.length} events` +
+              (failDetails.length > 0 ? `\n\n❌ Failed IDs:\n${failDetails.join('\n')}` : '')
             );
           } catch (error) {
             console.error('Clear Calendar by range error:', error);
