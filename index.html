@@ -1110,6 +1110,16 @@
       const [googleClientId, setGoogleClientId] = useState('');
       const [googleAccessToken, setGoogleAccessToken] = useState('');
       
+      // User-defined incomplete reasons
+      const [incompleteReasons, setIncompleteReasons] = useState([
+        'Lack of Time',
+        'Unexpected Interruption',
+        'Changed Priority',
+        'Lack of Motivation',
+        'Technical Issue',
+        'Other'
+      ]);
+
       // Weekly Journal & Growth Tracking
       const [journalDocUrl, setJournalDocUrl] = useState('');
       const [weeklyGoals, setWeeklyGoals] = useState({}); // { 'YYYY-WW': { goal: '', highlight: '', lowlight: '' } }
@@ -1135,6 +1145,8 @@
         const savedJournalUrl = localStorage.getItem('journal_doc_url');
         const savedWeeklyGoals = localStorage.getItem('weekly_goals');
         
+        const savedIncompleteReasons = localStorage.getItem('timewise_incomplete_reasons');
+        if (savedIncompleteReasons) setIncompleteReasons(JSON.parse(savedIncompleteReasons));
         if (savedEvents) setEvents(JSON.parse(savedEvents));
         if (savedCategories) setCategories(JSON.parse(savedCategories));
         if (savedProjects) {
@@ -1184,6 +1196,10 @@
       useEffect(() => {
         localStorage.setItem('timewise_projects', JSON.stringify(yearlyProjects));
       }, [yearlyProjects]);
+
+      useEffect(() => {
+        localStorage.setItem('timewise_incomplete_reasons', JSON.stringify(incompleteReasons));
+      }, [incompleteReasons]);
 
       useEffect(() => {
         localStorage.setItem('journal_doc_url', journalDocUrl);
@@ -1346,6 +1362,9 @@
           });
 
           if (response.ok) {
+            const data = await response.json();
+            // Store Google event ID on local event for future sync/delete
+            setEvents(prev => prev.map(e => e.id === event.id ? {...e, googleEventId: data.id} : e));
             alert(`Pushed "${event.title}" to Google Calendar!`);
           } else {
             const errData = await response.json();
@@ -1354,6 +1373,29 @@
         } catch (error) {
           console.error('Push to Google error:', error);
           alert('Error pushing event to Google Calendar. Please check your connection.');
+        }
+      };
+
+      // Delete events from Google Calendar (best-effort, won't block local deletion)
+      const deleteEventsFromGoogle = async (eventsToDelete) => {
+        if (!googleAccessToken) return;
+        const withGoogleId = eventsToDelete.filter(e => e.googleEventId);
+        if (withGoogleId.length === 0) return;
+
+        try {
+          await Promise.allSettled(
+            withGoogleId.map(e =>
+              fetch(
+                `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(e.googleEventId)}`,
+                {
+                  method: 'DELETE',
+                  headers: { 'Authorization': `Bearer ${googleAccessToken}` }
+                }
+              )
+            )
+          );
+        } catch (error) {
+          console.error('Delete from Google error:', error);
         }
       };
 
@@ -1407,7 +1449,8 @@
           description: '',
           location: '',
           projectId: '',
-          recurrence: 'once' // once, weekly, monthly, weekdays, weekends
+          recurrence: 'once', // once, daily, weekly, monthly, weekdays, weekends
+          recurrenceEndDate: ''
         };
 
         const [eventData, setEventData] = useState(initialData);
@@ -1417,12 +1460,14 @@
           const startDate = new Date(baseEvent.startDateTime);
           const endDate = new Date(baseEvent.endDateTime);
           const duration = endDate - startDate;
-          
-          // Get year end from the start date's year
-          const yearEnd = new Date(startDate.getFullYear(), 11, 31, 23, 59, 59);
+
+          // Use user-defined end date, or fall back to year end
+          const recurEnd = baseEvent.recurrenceEndDate
+            ? new Date(baseEvent.recurrenceEndDate + 'T23:59:59')
+            : new Date(startDate.getFullYear(), 11, 31, 23, 59, 59);
 
           if (baseEvent.recurrence === 'once' || !baseEvent.recurrence) {
-            // Single event - fix bug by creating just one event
+            // Single event
             newEvents.push({
               id: Date.now().toString(),
               ...baseEvent
@@ -1435,12 +1480,13 @@
           const maxEvents = 1000; // Safety limit
 
           switch(baseEvent.recurrence) {
-            case 'weekly':
-              while (currentDate <= yearEnd && eventCount < maxEvents) {
+            case 'daily':
+              while (currentDate <= recurEnd && eventCount < maxEvents) {
                 const newStart = new Date(currentDate);
+                newStart.setHours(startDate.getHours(), startDate.getMinutes(), 0, 0);
                 const newEnd = new Date(newStart.getTime() + duration);
-                
-                if (newStart <= yearEnd) {
+
+                if (newStart <= recurEnd) {
                   newEvents.push({
                     id: `${Date.now()}-${eventCount}`,
                     ...baseEvent,
@@ -1450,18 +1496,38 @@
                     endDate: formatDate(newEnd)
                   });
                 }
-                
+                currentDate.setDate(currentDate.getDate() + 1);
+                eventCount++;
+              }
+              break;
+
+            case 'weekly':
+              while (currentDate <= recurEnd && eventCount < maxEvents) {
+                const newStart = new Date(currentDate);
+                const newEnd = new Date(newStart.getTime() + duration);
+
+                if (newStart <= recurEnd) {
+                  newEvents.push({
+                    id: `${Date.now()}-${eventCount}`,
+                    ...baseEvent,
+                    startDateTime: newStart,
+                    endDateTime: newEnd,
+                    startDate: formatDate(newStart),
+                    endDate: formatDate(newEnd)
+                  });
+                }
+
                 currentDate.setDate(currentDate.getDate() + 7);
                 eventCount++;
               }
               break;
 
             case 'monthly':
-              while (currentDate <= yearEnd && eventCount < maxEvents) {
+              while (currentDate <= recurEnd && eventCount < maxEvents) {
                 const newStart = new Date(currentDate);
                 const newEnd = new Date(newStart.getTime() + duration);
-                
-                if (newStart <= yearEnd) {
+
+                if (newStart <= recurEnd) {
                   newEvents.push({
                     id: `${Date.now()}-${eventCount}`,
                     ...baseEvent,
@@ -1471,22 +1537,21 @@
                     endDate: formatDate(newEnd)
                   });
                 }
-                
+
                 currentDate.setMonth(currentDate.getMonth() + 1);
                 eventCount++;
               }
               break;
 
             case 'weekdays':
-              // Find all weekdays (Mon-Fri) from start to year end
               currentDate = new Date(startDate);
-              while (currentDate <= yearEnd && eventCount < maxEvents) {
+              while (currentDate <= recurEnd && eventCount < maxEvents) {
                 const dayOfWeek = currentDate.getDay();
-                if (dayOfWeek >= 1 && dayOfWeek <= 5) { // Monday to Friday
+                if (dayOfWeek >= 1 && dayOfWeek <= 5) {
                   const newStart = new Date(currentDate);
                   newStart.setHours(startDate.getHours(), startDate.getMinutes(), 0, 0);
                   const newEnd = new Date(newStart.getTime() + duration);
-                  
+
                   newEvents.push({
                     id: `${Date.now()}-${eventCount}`,
                     ...baseEvent,
@@ -1502,15 +1567,14 @@
               break;
 
             case 'weekends':
-              // Find all weekend days (Sat-Sun) from start to year end
               currentDate = new Date(startDate);
-              while (currentDate <= yearEnd && eventCount < maxEvents) {
+              while (currentDate <= recurEnd && eventCount < maxEvents) {
                 const dayOfWeek = currentDate.getDay();
-                if (dayOfWeek === 0 || dayOfWeek === 6) { // Sunday or Saturday
+                if (dayOfWeek === 0 || dayOfWeek === 6) {
                   const newStart = new Date(currentDate);
                   newStart.setHours(startDate.getHours(), startDate.getMinutes(), 0, 0);
                   const newEnd = new Date(newStart.getTime() + duration);
-                  
+
                   newEvents.push({
                     id: `${Date.now()}-${eventCount}`,
                     ...baseEvent,
@@ -1611,11 +1675,14 @@
                 deleteIds = new Set([window.__editingEventId]);
               }
 
+              deleteEventsFromGoogle(events.filter(e => deleteIds.has(e.id)));
               setEvents(events.filter(e => !deleteIds.has(e.id)));
             } else {
               if (!confirm('Are you sure you want to delete this event?')) {
                 return;
               }
+              const evtToDelete = events.find(e => e.id === window.__editingEventId);
+              if (evtToDelete) deleteEventsFromGoogle([evtToDelete]);
               setEvents(events.filter(e => e.id !== window.__editingEventId));
             }
 
@@ -1720,22 +1787,44 @@
               {eventData.type === 'planned' && (
                 <div className="form-group">
                   <label>Recurrence</label>
-                  <select 
+                  <select
                     value={eventData.recurrence || 'once'}
                     onChange={e => setEventData({...eventData, recurrence: e.target.value})}
                   >
                     <option value="once">Once (Single Event)</option>
-                    <option value="weekly">Weekly (until year end)</option>
-                    <option value="monthly">Monthly (until year end)</option>
-                    <option value="weekdays">Weekdays (until year end)</option>
-                    <option value="weekends">Weekends (until year end)</option>
+                    <option value="daily">Every Day</option>
+                    <option value="weekly">Every Week</option>
+                    <option value="monthly">Every Month</option>
+                    <option value="weekdays">Weekdays (Mon-Fri)</option>
+                    <option value="weekends">Weekends (Sat-Sun)</option>
                   </select>
-                  <p style={{ fontSize: '12px', color: '#6b9b7a', marginTop: '4px' }}>
-                    {eventData.recurrence === 'once' ? 
-                      'Single event only' : 
-                      'Create recurring events from event date until Dec 31 of that year'
-                    }
-                  </p>
+
+                  {eventData.recurrence !== 'once' && (
+                    <div style={{ marginTop: '12px' }}>
+                      <label style={{ display: 'block', marginBottom: '6px', fontWeight: 600, color: '#4a7c59', fontSize: '13px' }}>
+                        Until when? *
+                      </label>
+                      <input
+                        type="date"
+                        value={eventData.recurrenceEndDate || ''}
+                        onChange={e => setEventData({...eventData, recurrenceEndDate: e.target.value})}
+                        min={eventData.startDate}
+                        style={{ width: '100%' }}
+                      />
+                      <p style={{ fontSize: '12px', color: '#6b9b7a', marginTop: '4px' }}>
+                        {eventData.recurrenceEndDate
+                          ? `Repeats ${eventData.recurrence} from ${eventData.startDate} until ${eventData.recurrenceEndDate}`
+                          : 'Please set an end date for the recurring events (defaults to year end if not set)'
+                        }
+                      </p>
+                    </div>
+                  )}
+
+                  {eventData.recurrence === 'once' && (
+                    <p style={{ fontSize: '12px', color: '#6b9b7a', marginTop: '4px' }}>
+                      Single event only
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -2726,23 +2815,89 @@
                 <>
                   <div className="form-group">
                     <label>Reason Not Completed *</label>
-                    <select 
+                    <select
                       value={incompleteReason}
                       onChange={e => setIncompleteReason(e.target.value)}
                     >
                       <option value="">Select reason...</option>
-                      <option value="lack_of_time">Lack of Time</option>
-                      <option value="unexpected_interruption">Unexpected Interruption</option>
-                      <option value="changed_priority">Changed Priority</option>
-                      <option value="lack_of_motivation">Lack of Motivation</option>
-                      <option value="technical_issue">Technical Issue</option>
-                      <option value="other">Other</option>
+                      {incompleteReasons.map(reason => (
+                        <option key={reason} value={reason}>{reason}</option>
+                      ))}
                     </select>
+                    <div style={{ marginTop: '8px', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        placeholder="Add custom reason..."
+                        style={{ flex: 1, padding: '6px 10px', fontSize: '13px', border: '1px solid #e0e7e0', borderRadius: '6px' }}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && e.target.value.trim()) {
+                            const newReason = e.target.value.trim();
+                            if (!incompleteReasons.includes(newReason)) {
+                              setIncompleteReasons([...incompleteReasons, newReason]);
+                              setIncompleteReason(newReason);
+                            }
+                            e.target.value = '';
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        style={{ padding: '6px 10px', fontSize: '12px', whiteSpace: 'nowrap' }}
+                        onClick={e => {
+                          const input = e.target.previousElementSibling;
+                          const newReason = input.value.trim();
+                          if (newReason && !incompleteReasons.includes(newReason)) {
+                            setIncompleteReasons([...incompleteReasons, newReason]);
+                            setIncompleteReason(newReason);
+                            input.value = '';
+                          }
+                        }}
+                      >
+                        + Add
+                      </button>
+                    </div>
+                    {incompleteReasons.length > 0 && (
+                      <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                        {incompleteReasons.map(reason => (
+                          <span
+                            key={reason}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '3px 8px',
+                              background: incompleteReason === reason ? '#4a7c59' : '#f5f7f5',
+                              color: incompleteReason === reason ? 'white' : '#6b9b7a',
+                              borderRadius: '12px',
+                              fontSize: '11px',
+                              cursor: 'pointer'
+                            }}
+                            onClick={() => setIncompleteReason(reason)}
+                          >
+                            {reason}
+                            <span
+                              style={{ marginLeft: '2px', cursor: 'pointer', fontWeight: 700, fontSize: '13px' }}
+                              onClick={e => {
+                                e.stopPropagation();
+                                if (incompleteReasons.length > 1) {
+                                  setIncompleteReasons(incompleteReasons.filter(r => r !== reason));
+                                  if (incompleteReason === reason) setIncompleteReason('');
+                                }
+                              }}
+                              title="Remove reason"
+                            >
+                              x
+                            </span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="form-group">
                     <label>What did you actually do? *</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={actualEventTitle}
                       onChange={e => setActualEventTitle(e.target.value)}
                       placeholder="Actual activity during this time"
@@ -2751,16 +2906,16 @@
                   <div className="form-row">
                     <div className="form-group">
                       <label>Actual Start Time *</label>
-                      <input 
-                        type="time" 
+                      <input
+                        type="time"
                         value={actualStartTime}
                         onChange={e => setActualStartTime(e.target.value)}
                       />
                     </div>
                     <div className="form-group">
                       <label>Actual End Time *</label>
-                      <input 
-                        type="time" 
+                      <input
+                        type="time"
                         value={actualEndTime}
                         onChange={e => setActualEndTime(e.target.value)}
                       />
@@ -3254,6 +3409,7 @@
             });
             let synced = 0;
             let skipped = 0;
+            const idUpdates = [];
 
             for (const event of plannedEvents) {
               // Check if event already exists in Google Calendar
@@ -3303,8 +3459,19 @@
               });
 
               if (response.ok) {
+                const data = await response.json();
+                // Store Google event ID for future sync/delete
+                idUpdates.push({ localId: event.id, googleEventId: data.id });
                 synced++;
               }
+            }
+
+            // Apply Google event ID updates to local events
+            if (idUpdates.length > 0) {
+              setEvents(prev => prev.map(e => {
+                const update = idUpdates.find(u => u.localId === e.id);
+                return update ? { ...e, googleEventId: update.googleEventId } : e;
+              }));
             }
 
             setSyncStatus('connected');
@@ -5496,9 +5663,12 @@
                   <span style={{ fontSize: '16px', fontWeight: 600, color: '#2d5a3d' }}>
                     📋 Planned Events
                   </span>
+                  <span style={{ fontSize: '12px', color: '#6b9b7a', marginLeft: '8px' }}>
+                    (click empty area to add event)
+                  </span>
                 </div>
 
-                <div style={{ 
+                <div style={{
                   display: 'grid',
                   gridTemplateColumns: 'repeat(7, 1fr)',
                   gap: '8px',
@@ -5523,7 +5693,26 @@
                         key={index}
                         className={`calendar-day ${isToday ? 'today' : ''}`}
                         style={{ minHeight: '120px', cursor: isSelectMode ? 'default' : 'pointer' }}
-                        onClick={() => { if (!isSelectMode) handleDayClick(date); }}
+                        onClick={() => {
+                          if (!isSelectMode) {
+                            setPrefilledEventData({
+                              title: '',
+                              startDate: formatDate(date),
+                              startTime: '09:00',
+                              endDate: formatDate(date),
+                              endTime: '10:00',
+                              categoryId: categories[0]?.id || '',
+                              type: 'planned',
+                              description: '',
+                              location: '',
+                              projectId: '',
+                              recurrence: 'once',
+                              recurrenceEndDate: ''
+                            });
+                            window.__editingEventId = null;
+                            setShowEventModal(true);
+                          }
+                        }}
                       >
                         <div className="day-number">{date.getDate()}</div>
                         <div className="day-events">
@@ -5603,6 +5792,9 @@
                   <span style={{ fontSize: '16px', fontWeight: 600, color: '#4a7c59' }}>
                     ✅ Actual Events
                   </span>
+                  <span style={{ fontSize: '12px', color: '#6b9b7a', marginLeft: '8px' }}>
+                    (click empty area to add event)
+                  </span>
                 </div>
 
                 <div style={{
@@ -5630,7 +5822,26 @@
                         key={index}
                         className={`calendar-day ${isToday ? 'today' : ''}`}
                         style={{ minHeight: '120px', cursor: isSelectMode ? 'default' : 'pointer' }}
-                        onClick={() => { if (!isSelectMode) handleDayClick(date); }}
+                        onClick={() => {
+                          if (!isSelectMode) {
+                            setPrefilledEventData({
+                              title: '',
+                              startDate: formatDate(date),
+                              startTime: '09:00',
+                              endDate: formatDate(date),
+                              endTime: '10:00',
+                              categoryId: categories[0]?.id || '',
+                              type: 'actual',
+                              description: '',
+                              location: '',
+                              projectId: '',
+                              recurrence: 'once',
+                              recurrenceEndDate: ''
+                            });
+                            window.__editingEventId = null;
+                            setShowEventModal(true);
+                          }
+                        }}
                       >
                         <div className="day-number">{date.getDate()}</div>
                         <div className="day-events">
@@ -5785,18 +5996,38 @@
                                 className={`event-item ${event.type}${isSelectMode ? ' selectable' : ''}${isSelected ? ' selected' : ''}`}
                                 style={{
                                   borderLeftColor: category?.color,
-                                  cursor: isSelectMode ? 'pointer' : 'default',
+                                  cursor: 'pointer',
                                   background: isSelected ? `${category?.color || '#4a7c59'}40` : undefined
                                 }}
-                                title={isSelectMode ? 'Click to select' : `${event.title} - ${event.type}`}
+                                title={isSelectMode ? 'Click to select' : `${event.title} - ${event.type} (click to edit)`}
                                 onClick={(e) => {
+                                  e.stopPropagation();
                                   if (isSelectMode) {
-                                    e.stopPropagation();
                                     setSelectedEventIds(prev =>
                                       prev.includes(event.id)
                                         ? prev.filter(id => id !== event.id)
                                         : [...prev, event.id]
                                     );
+                                  } else {
+                                    if (event.type === 'planned') {
+                                      setSelectedEventForCompletion(event);
+                                      setShowCompletionModal(true);
+                                    } else {
+                                      setPrefilledEventData({
+                                        title: event.title,
+                                        startDate: formatDate(new Date(event.startDateTime)),
+                                        startTime: formatTime(new Date(event.startDateTime)),
+                                        endDate: formatDate(new Date(event.endDateTime)),
+                                        endTime: formatTime(new Date(event.endDateTime)),
+                                        categoryId: event.categoryId,
+                                        type: event.type,
+                                        description: event.description || '',
+                                        location: event.location || '',
+                                        projectId: event.projectId || ''
+                                      });
+                                      window.__editingEventId = event.id;
+                                      setShowEventModal(true);
+                                    }
                                   }
                                 }}
                               >
@@ -7167,6 +7398,7 @@
                     setShowRecurringDeleteModal(true);
                   } else {
                     if (confirm(`Delete ${selectedEventIds.length} selected event${selectedEventIds.length > 1 ? 's' : ''}? This cannot be undone.`)) {
+                      deleteEventsFromGoogle(events.filter(e => selectedIdSet.has(e.id)));
                       setEvents(events.filter(e => !selectedIdSet.has(e.id)));
                       setSelectedEventIds([]);
                       setIsSelectMode(false);
@@ -7270,6 +7502,7 @@
                       const idsToDelete = recurringDeleteContext.source === 'single'
                         ? new Set([recurringDeleteContext.eventId])
                         : new Set(recurringDeleteContext.selectedIds);
+                      deleteEventsFromGoogle(events.filter(e => idsToDelete.has(e.id)));
                       setEvents(events.filter(e => !idsToDelete.has(e.id)));
                       setSelectedEventIds([]);
                       setIsSelectMode(false);
@@ -7301,6 +7534,7 @@
                             ...recurringDeleteContext.selectedIds,
                             ...recurringDeleteContext.additionalRecurring.map(e => e.id)
                           ]);
+                      deleteEventsFromGoogle(events.filter(e => idsToDelete.has(e.id)));
                       setEvents(events.filter(e => !idsToDelete.has(e.id)));
                       setSelectedEventIds([]);
                       setIsSelectMode(false);
