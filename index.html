@@ -1276,6 +1276,7 @@
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
+    db.settings({ experimentalForceLongPolling: true });
 
     // Batch write helper — Firestore limit is 500 ops per batch
     const commitInBatches = async (operations) => {
