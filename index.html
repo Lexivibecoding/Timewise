@@ -1276,7 +1276,14 @@
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
-    db.settings({ experimentalForceLongPolling: true });
+    db.settings({ experimentalAutoDetectLongPolling: true, merge: true });
+
+    // Test Firestore connectivity
+    db.enableNetwork().then(() => {
+      console.log('[TimeWise] Firestore network enabled');
+    }).catch(err => {
+      console.error('[TimeWise] Firestore network error:', err);
+    });
 
     // Batch write helper — Firestore limit is 500 ops per batch
     const commitInBatches = async (operations) => {
@@ -1530,7 +1537,8 @@
           setDataLoading(true);
           dataLoadedRef.current = false;
           try {
-            const userDoc = await userRef.get();
+            console.log('[TimeWise] Loading Firestore data for user:', uid);
+            const userDoc = await userRef.get({ source: 'server' });
 
             if (!userDoc.exists) {
               // First login — migrate from localStorage
@@ -1553,7 +1561,22 @@
 
             dataLoadedRef.current = true;
           } catch (err) {
-            console.error('Error loading Firestore data:', err);
+            console.error('[TimeWise] Firestore load error:', err.code, err.message);
+            // If Firestore fails, fall back to localStorage so app still works
+            console.log('[TimeWise] Falling back to localStorage');
+            const savedEvents = localStorage.getItem('timewise_events');
+            const savedCategories = localStorage.getItem('timewise_categories');
+            const savedProjects = localStorage.getItem('timewise_projects');
+            const savedIncompleteReasons = localStorage.getItem('timewise_incomplete_reasons');
+            const savedWeeklyGoals = localStorage.getItem('weekly_goals');
+            const savedJournalUrl = localStorage.getItem('journal_doc_url');
+            if (savedEvents) setEvents(JSON.parse(savedEvents));
+            if (savedCategories) setCategories(JSON.parse(savedCategories));
+            if (savedProjects) setYearlyProjects(JSON.parse(savedProjects).map(p => ({ ...p, deadline: new Date(p.deadline) })));
+            if (savedIncompleteReasons) setIncompleteReasons(JSON.parse(savedIncompleteReasons));
+            if (savedWeeklyGoals) setWeeklyGoals(JSON.parse(savedWeeklyGoals));
+            if (savedJournalUrl) setJournalDocUrl(savedJournalUrl);
+            dataLoadedRef.current = true;
           }
           if (!cancelled) setDataLoading(false);
         };
