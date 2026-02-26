@@ -11,7 +11,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-  
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
   <style>
     * {
       margin: 0;
@@ -1050,13 +1053,301 @@
       border-color: #ccc;
       color: #999;
     }
+
+    /* Auth Screen */
+    .auth-container {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #f5f7f5 0%, #e8f0e8 100%);
+    }
+
+    .auth-card {
+      background: white;
+      border-radius: 16px;
+      padding: 40px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 8px 32px rgba(45, 90, 61, 0.12);
+    }
+
+    .auth-card h1 {
+      text-align: center;
+      margin-bottom: 8px;
+      font-size: 32px;
+    }
+
+    .auth-card .auth-subtitle {
+      text-align: center;
+      color: #6b9b7a;
+      font-size: 14px;
+      margin-bottom: 32px;
+    }
+
+    .auth-card .form-group {
+      margin-bottom: 16px;
+    }
+
+    .auth-card .form-group label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      color: #2d5a3d;
+      margin-bottom: 6px;
+    }
+
+    .auth-card .form-group input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid #d0ddd0;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+
+    .auth-card .form-group input:focus {
+      outline: none;
+      border-color: #4a7c59;
+      box-shadow: 0 0 0 3px rgba(74, 124, 89, 0.1);
+    }
+
+    .auth-btn-primary {
+      width: 100%;
+      padding: 12px;
+      background: #4a7c59;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      font-family: inherit;
+    }
+
+    .auth-btn-primary:hover {
+      background: #3d6749;
+    }
+
+    .auth-btn-google {
+      width: 100%;
+      padding: 12px;
+      background: white;
+      color: #333;
+      border: 1px solid #dadce0;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: background 0.2s, box-shadow 0.2s;
+      font-family: inherit;
+      margin-bottom: 16px;
+    }
+
+    .auth-btn-google:hover {
+      background: #f8f9fa;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .auth-divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 20px 0;
+      color: #9bb3a0;
+      font-size: 13px;
+    }
+
+    .auth-divider::before,
+    .auth-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #d0ddd0;
+    }
+
+    .auth-toggle {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 14px;
+      color: #6b9b7a;
+    }
+
+    .auth-toggle button {
+      background: none;
+      border: none;
+      color: #4a7c59;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 14px;
+      font-family: inherit;
+      text-decoration: underline;
+    }
+
+    .auth-error {
+      background: #fef2f2;
+      color: #dc2626;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      border: 1px solid #fecaca;
+    }
+
+    /* Loading Spinner */
+    .loading-container {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #f5f7f5 0%, #e8f0e8 100%);
+      gap: 16px;
+    }
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #e0e7e0;
+      border-top-color: #4a7c59;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      color: #4a7c59;
+      font-size: 15px;
+      font-weight: 500;
+    }
+
+    /* Sign Out Button */
+    .sign-out-btn {
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: white;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+      font-family: inherit;
+      margin-left: auto;
+    }
+
+    .sign-out-btn:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+
+    .sign-out-btn .user-name {
+      font-weight: 500;
+      max-width: 150px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
   </style>
 </head>
 <body>
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useEffect } = React;
+    // --- Firebase Setup ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyA_hI6MAh5QevKjlBqwmjNcxU0e4bVhfEU",
+      authDomain: "timewise-b4b26.firebaseapp.com",
+      projectId: "timewise-b4b26",
+      storageBucket: "timewise-b4b26.firebasestorage.app",
+      messagingSenderId: "988841498498",
+      appId: "1:988841498498:web:73cb2d26e4eae061c99ee0"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    // Batch write helper — Firestore limit is 500 ops per batch
+    const commitInBatches = async (operations) => {
+      const BATCH_LIMIT = 499;
+      for (let i = 0; i < operations.length; i += BATCH_LIMIT) {
+        const batch = db.batch();
+        operations.slice(i, i + BATCH_LIMIT).forEach(op => op(batch));
+        await batch.commit();
+      }
+    };
+
+    // One-time migration: localStorage → Firestore
+    const migrateFromLocalStorage = async (userId) => {
+      const userRef = db.collection('users').doc(userId);
+      const data = {};
+
+      const savedCategories = localStorage.getItem('timewise_categories');
+      if (savedCategories) data.categories = JSON.parse(savedCategories);
+
+      const savedProjects = localStorage.getItem('timewise_projects');
+      if (savedProjects) data.projects = JSON.parse(savedProjects);
+
+      const savedIncompleteReasons = localStorage.getItem('timewise_incomplete_reasons');
+      if (savedIncompleteReasons) data.incompleteReasons = JSON.parse(savedIncompleteReasons);
+
+      const savedWeeklyGoals = localStorage.getItem('weekly_goals');
+      if (savedWeeklyGoals) data.weeklyGoals = JSON.parse(savedWeeklyGoals);
+
+      const savedJournalUrl = localStorage.getItem('journal_doc_url');
+      if (savedJournalUrl) data.journalDocUrl = savedJournalUrl;
+
+      const savedGoogleConnection = localStorage.getItem('google_connected');
+      const savedClientId = localStorage.getItem('google_client_id');
+      const savedSheetUrl = localStorage.getItem('google_sheet_url');
+      const savedAccessToken = localStorage.getItem('google_access_token');
+      const savedTokenExpiry = localStorage.getItem('google_token_expiry');
+      if (savedClientId || savedSheetUrl) {
+        data.googleCalendar = {
+          connected: savedGoogleConnection === 'true',
+          clientId: savedClientId || '',
+          sheetUrl: savedSheetUrl || '',
+          accessToken: savedAccessToken || '',
+          tokenExpiry: savedTokenExpiry ? parseInt(savedTokenExpiry) : 0
+        };
+      }
+
+      data.profile = {
+        email: auth.currentUser?.email || '',
+        displayName: auth.currentUser?.displayName || '',
+        createdAt: Date.now()
+      };
+
+      // Write user doc
+      await userRef.set(data, { merge: true });
+
+      // Migrate events to subcollection
+      const savedEvents = localStorage.getItem('timewise_events');
+      if (savedEvents) {
+        const events = JSON.parse(savedEvents);
+        if (events.length > 0) {
+          const ops = events.map(event => (batch) => {
+            const ref = userRef.collection('events').doc(event.id);
+            batch.set(ref, event);
+          });
+          await commitInBatches(ops);
+        }
+      }
+
+      return data;
+    };
+
+    const { useState, useEffect, useRef } = React;
 
     // Simple icon components
     const ChevronLeft = () => <span>←</span>;
@@ -1078,7 +1369,90 @@
       return date.toTimeString().slice(0, 5);
     };
 
+    // --- Auth Screen ---
+    const AuthScreen = ({ onAuth }) => {
+      const [isSignUp, setIsSignUp] = useState(false);
+      const [email, setEmail] = useState('');
+      const [password, setPassword] = useState('');
+      const [error, setError] = useState('');
+      const [loading, setLoading] = useState(false);
+
+      const handleGoogle = async () => {
+        setError('');
+        setLoading(true);
+        try {
+          const provider = new firebase.auth.GoogleAuthProvider();
+          await auth.signInWithPopup(provider);
+        } catch (e) {
+          setError(e.message);
+        }
+        setLoading(false);
+      };
+
+      const handleEmail = async (e) => {
+        e.preventDefault();
+        setError('');
+        if (!email || !password) { setError('Please fill in all fields'); return; }
+        setLoading(true);
+        try {
+          if (isSignUp) {
+            await auth.createUserWithEmailAndPassword(email, password);
+          } else {
+            await auth.signInWithEmailAndPassword(email, password);
+          }
+        } catch (err) {
+          setError(err.message);
+        }
+        setLoading(false);
+      };
+
+      return (
+        <div className="auth-container">
+          <div className="auth-card">
+            <h1>TimeWise</h1>
+            <p className="auth-subtitle">I choose to grow with time, like a tree</p>
+
+            {error && <div className="auth-error">{error}</div>}
+
+            <button className="auth-btn-google" onClick={handleGoogle} disabled={loading}>
+              <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.97-6.19A23.998 23.998 0 0 0 0 24c0 3.77.87 7.34 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+              Sign in with Google
+            </button>
+
+            <div className="auth-divider">or</div>
+
+            <form onSubmit={handleEmail}>
+              <div className="form-group">
+                <label>Email</label>
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" />
+              </div>
+              <div className="form-group">
+                <label>Password</label>
+                <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Enter password" />
+              </div>
+              <button type="submit" className="auth-btn-primary" disabled={loading}>
+                {loading ? 'Please wait...' : (isSignUp ? 'Create Account' : 'Sign In')}
+              </button>
+            </form>
+
+            <div className="auth-toggle">
+              {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
+              <button onClick={() => { setIsSignUp(!isSignUp); setError(''); }}>
+                {isSignUp ? 'Sign In' : 'Sign Up'}
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
     const App = () => {
+      // --- Auth & loading state ---
+      const [currentUser, setCurrentUser] = useState(null);
+      const [authLoading, setAuthLoading] = useState(true);
+      const [dataLoading, setDataLoading] = useState(false);
+      const dataLoadedRef = useRef(false);
+
       const [currentDate, setCurrentDate] = useState(new Date());
       const [view, setView] = useState('timeline');
       const [dailyViewMode, setDailyViewMode] = useState('calendar');
@@ -1132,82 +1506,170 @@
       const [draggedEvent, setDraggedEvent] = useState(null);
       const [dragOverSlot, setDragOverSlot] = useState(null);
 
-      // Load data from localStorage
+      // --- Firebase Auth listener ---
       useEffect(() => {
-        const savedEvents = localStorage.getItem('timewise_events');
-        const savedCategories = localStorage.getItem('timewise_categories');
-        const savedProjects = localStorage.getItem('timewise_projects');
-        const savedGoogleConnection = localStorage.getItem('google_connected');
-        const savedSheetUrl = localStorage.getItem('google_sheet_url');
-        const savedClientId = localStorage.getItem('google_client_id');
-        const savedAccessToken = localStorage.getItem('google_access_token');
-        const savedTokenExpiry = localStorage.getItem('google_token_expiry');
-        const savedJournalUrl = localStorage.getItem('journal_doc_url');
-        const savedWeeklyGoals = localStorage.getItem('weekly_goals');
-        
-        const savedIncompleteReasons = localStorage.getItem('timewise_incomplete_reasons');
-        if (savedIncompleteReasons) setIncompleteReasons(JSON.parse(savedIncompleteReasons));
-        if (savedEvents) setEvents(JSON.parse(savedEvents));
-        if (savedCategories) setCategories(JSON.parse(savedCategories));
-        if (savedProjects) {
-          const projects = JSON.parse(savedProjects);
-          setYearlyProjects(projects.map(p => ({ ...p, deadline: new Date(p.deadline) })));
-        }
-        if (savedSheetUrl) {
-          setGoogleSheetUrl(savedSheetUrl);
-        }
-        if (savedClientId) {
-          setGoogleClientId(savedClientId);
-        }
-        if (savedJournalUrl) {
-          setJournalDocUrl(savedJournalUrl);
-        }
-        if (savedWeeklyGoals) {
-          setWeeklyGoals(JSON.parse(savedWeeklyGoals));
-        }
-        
-        // Check if token is still valid
-        if (savedGoogleConnection === 'true' && savedAccessToken && savedTokenExpiry) {
-          const expiry = parseInt(savedTokenExpiry);
-          if (Date.now() < expiry) {
-            setGoogleConnected(true);
-            setGoogleAccessToken(savedAccessToken);
-            setSyncStatus('connected');
-          } else {
-            // Token expired, clear connection
-            setGoogleConnected(false);
-            setSyncStatus('disconnected');
-            localStorage.removeItem('google_connected');
-            localStorage.removeItem('google_access_token');
-            localStorage.removeItem('google_token_expiry');
+        const unsubscribe = auth.onAuthStateChanged(user => {
+          setCurrentUser(user);
+          setAuthLoading(false);
+          if (!user) {
+            dataLoadedRef.current = false;
           }
-        }
+        });
+        return () => unsubscribe();
       }, []);
 
-      // Save to localStorage
+      // --- Load data from Firestore when user logs in ---
       useEffect(() => {
-        localStorage.setItem('timewise_events', JSON.stringify(events));
-      }, [events]);
+        if (!currentUser) return;
+        const uid = currentUser.uid;
+        const userRef = db.collection('users').doc(uid);
+        let cancelled = false;
 
+        const loadData = async () => {
+          setDataLoading(true);
+          dataLoadedRef.current = false;
+          try {
+            const userDoc = await userRef.get();
+
+            if (!userDoc.exists) {
+              // First login — migrate from localStorage
+              const migrated = await migrateFromLocalStorage(uid);
+              // Reload after migration
+              const freshDoc = await userRef.get();
+              if (cancelled) return;
+              applyUserDoc(freshDoc.data() || {});
+            } else {
+              if (cancelled) return;
+              applyUserDoc(userDoc.data());
+            }
+
+            // Load events subcollection
+            const eventsSnap = await userRef.collection('events').get();
+            if (cancelled) return;
+            const loadedEvents = [];
+            eventsSnap.forEach(doc => loadedEvents.push(deserializeEvent(doc.data())));
+            setEvents(loadedEvents);
+
+            dataLoadedRef.current = true;
+          } catch (err) {
+            console.error('Error loading Firestore data:', err);
+          }
+          if (!cancelled) setDataLoading(false);
+        };
+
+        const applyUserDoc = (data) => {
+          if (data.categories) setCategories(data.categories);
+          if (data.projects) {
+            setYearlyProjects(data.projects.map(p => ({
+              ...p,
+              deadline: p.deadline && p.deadline.toDate ? p.deadline.toDate() : new Date(p.deadline)
+            })));
+          }
+          if (data.incompleteReasons) setIncompleteReasons(data.incompleteReasons);
+          if (data.weeklyGoals) setWeeklyGoals(data.weeklyGoals);
+          if (data.journalDocUrl) setJournalDocUrl(data.journalDocUrl);
+          if (data.googleCalendar) {
+            const gc = data.googleCalendar;
+            if (gc.sheetUrl) setGoogleSheetUrl(gc.sheetUrl);
+            if (gc.clientId) setGoogleClientId(gc.clientId);
+            if (gc.connected && gc.accessToken && gc.tokenExpiry) {
+              if (Date.now() < gc.tokenExpiry) {
+                setGoogleConnected(true);
+                setGoogleAccessToken(gc.accessToken);
+                setSyncStatus('connected');
+              }
+            }
+          }
+        };
+
+        loadData();
+        return () => { cancelled = true; };
+      }, [currentUser]);
+
+      // --- Save to Firestore (replaces localStorage saves) ---
       useEffect(() => {
-        localStorage.setItem('timewise_categories', JSON.stringify(categories));
+        if (!currentUser || !dataLoadedRef.current) return;
+        db.collection('users').doc(currentUser.uid).set({ categories }, { merge: true }).catch(console.error);
       }, [categories]);
 
       useEffect(() => {
-        localStorage.setItem('timewise_projects', JSON.stringify(yearlyProjects));
+        if (!currentUser || !dataLoadedRef.current) return;
+        const serialized = yearlyProjects.map(p => ({
+          ...p,
+          deadline: p.deadline instanceof Date ? p.deadline.toISOString() : p.deadline
+        }));
+        db.collection('users').doc(currentUser.uid).set({ projects: serialized }, { merge: true }).catch(console.error);
       }, [yearlyProjects]);
 
       useEffect(() => {
-        localStorage.setItem('timewise_incomplete_reasons', JSON.stringify(incompleteReasons));
+        if (!currentUser || !dataLoadedRef.current) return;
+        db.collection('users').doc(currentUser.uid).set({ incompleteReasons }, { merge: true }).catch(console.error);
       }, [incompleteReasons]);
 
       useEffect(() => {
-        localStorage.setItem('journal_doc_url', journalDocUrl);
+        if (!currentUser || !dataLoadedRef.current) return;
+        db.collection('users').doc(currentUser.uid).set({ journalDocUrl }, { merge: true }).catch(console.error);
       }, [journalDocUrl]);
 
       useEffect(() => {
-        localStorage.setItem('weekly_goals', JSON.stringify(weeklyGoals));
+        if (!currentUser || !dataLoadedRef.current) return;
+        db.collection('users').doc(currentUser.uid).set({ weeklyGoals }, { merge: true }).catch(console.error);
       }, [weeklyGoals]);
+
+      // Convert Date objects to ISO strings for Firestore storage
+      const serializeEvent = (event) => {
+        const e = { ...event };
+        if (e.startDateTime instanceof Date) e.startDateTime = e.startDateTime.toISOString();
+        if (e.endDateTime instanceof Date) e.endDateTime = e.endDateTime.toISOString();
+        if (e.deadline instanceof Date) e.deadline = e.deadline.toISOString();
+        return e;
+      };
+
+      // Convert ISO strings / Firestore Timestamps back to Date objects
+      const deserializeEvent = (event) => {
+        const e = { ...event };
+        if (e.startDateTime) {
+          e.startDateTime = e.startDateTime.toDate ? e.startDateTime.toDate() : new Date(e.startDateTime);
+        }
+        if (e.endDateTime) {
+          e.endDateTime = e.endDateTime.toDate ? e.endDateTime.toDate() : new Date(e.endDateTime);
+        }
+        return e;
+      };
+
+      // Helper: save a single event to Firestore
+      const saveEventToFirestore = (event) => {
+        if (!currentUser) return;
+        db.collection('users').doc(currentUser.uid).collection('events').doc(event.id).set(serializeEvent(event)).catch(console.error);
+      };
+
+      // Helper: delete a single event from Firestore
+      const deleteEventFromFirestore = (eventId) => {
+        if (!currentUser) return;
+        db.collection('users').doc(currentUser.uid).collection('events').doc(eventId).delete().catch(console.error);
+      };
+
+      // Helper: save multiple events to Firestore
+      const saveEventsToFirestore = (evts) => {
+        if (!currentUser || evts.length === 0) return;
+        const uid = currentUser.uid;
+        const ops = evts.map(event => (batch) => {
+          const ref = db.collection('users').doc(uid).collection('events').doc(event.id);
+          batch.set(ref, serializeEvent(event));
+        });
+        commitInBatches(ops).catch(console.error);
+      };
+
+      // Helper: delete multiple events from Firestore
+      const deleteEventsFromFirestore = (ids) => {
+        if (!currentUser || ids.length === 0) return;
+        const uid = currentUser.uid;
+        const ops = ids.map(id => (batch) => {
+          const ref = db.collection('users').doc(uid).collection('events').doc(id);
+          batch.delete(ref);
+        });
+        commitInBatches(ops).catch(console.error);
+      };
 
       const getDaysUntil = (deadline) => {
         const today = new Date();
@@ -1365,6 +1827,7 @@
             const data = await response.json();
             // Store Google event ID on local event for future sync/delete
             setEvents(prev => prev.map(e => e.id === event.id ? {...e, googleEventId: data.id} : e));
+            saveEventToFirestore({...event, googleEventId: data.id});
             alert(`Pushed "${event.title}" to Google Calendar!`);
           } else {
             const errData = await response.json();
@@ -1608,16 +2071,19 @@
           // Check if we're editing an existing event
           if (window.__editingEventId) {
             // Update existing event
-            const updatedEvents = events.map(e => 
+            const updated = events.map(e =>
               e.id === window.__editingEventId ? { ...e, ...eventToSave } : e
             );
-            setEvents(updatedEvents);
+            setEvents(updated);
+            const savedEvt = updated.find(e => e.id === window.__editingEventId);
+            if (savedEvt) saveEventToFirestore(savedEvt);
             window.__editingEventId = null;
           } else {
             // Create new event(s) with recurrence
             const newEvents = createRecurringEvents(eventToSave);
             setEvents([...events, ...newEvents]);
-            
+            saveEventsToFirestore(newEvents);
+
             if (eventData.recurrence !== 'once') {
               alert(`Created ${newEvents.length} recurring events!`);
             }
@@ -1677,6 +2143,7 @@
 
               deleteEventsFromGoogle(events.filter(e => deleteIds.has(e.id)));
               setEvents(events.filter(e => !deleteIds.has(e.id)));
+              deleteEventsFromFirestore([...deleteIds]);
             } else {
               if (!confirm('Are you sure you want to delete this event?')) {
                 return;
@@ -1684,6 +2151,7 @@
               const evtToDelete = events.find(e => e.id === window.__editingEventId);
               if (evtToDelete) deleteEventsFromGoogle([evtToDelete]);
               setEvents(events.filter(e => e.id !== window.__editingEventId));
+              deleteEventFromFirestore(window.__editingEventId);
             }
 
             window.__editingEventId = null;
@@ -2407,7 +2875,9 @@
 
         const handleSaveSheetUrl = () => {
           setGoogleSheetUrl(sheetUrl);
-          localStorage.setItem('google_sheet_url', sheetUrl);
+          if (currentUser) {
+            db.collection('users').doc(currentUser.uid).set({ googleCalendar: { sheetUrl } }, { merge: true }).catch(console.error);
+          }
           alert('Google Sheet URL saved!\n\nIn a full implementation, TimeWise would:\n1. Use Google Sheets API to write data directly\n2. Authenticate with OAuth\n3. Update the sheet automatically');
         };
 
@@ -2680,6 +3150,7 @@
           };
 
           setEvents([...events.filter(e => e.id !== event.id), updatedEvent, actualEvent]);
+          saveEventsToFirestore([updatedEvent, actualEvent]);
           setShowCompletionModal(false);
           setSelectedEventForCompletion(null);
         };
@@ -3190,7 +3661,9 @@
             return;
           }
           setGoogleClientId(clientId.trim());
-          localStorage.setItem('google_client_id', clientId.trim());
+          if (currentUser) {
+            db.collection('users').doc(currentUser.uid).set({ googleCalendar: { clientId: clientId.trim() } }, { merge: true }).catch(console.error);
+          }
           setShowGoogleSetupModal(false);
           alert('Google OAuth Client ID saved!\n\nYou can now connect to Google Calendar.');
         };
@@ -3280,12 +3753,15 @@
               scope: 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events',
               callback: async (response) => {
                 if (response.access_token) {
+                  const tokenExpiry = Date.now() + (response.expires_in * 1000);
                   setGoogleAccessToken(response.access_token);
-                  localStorage.setItem('google_access_token', response.access_token);
-                  localStorage.setItem('google_token_expiry', Date.now() + (response.expires_in * 1000));
                   setGoogleConnected(true);
                   setSyncStatus('connected');
-                  localStorage.setItem('google_connected', 'true');
+                  if (currentUser) {
+                    db.collection('users').doc(currentUser.uid).set({
+                      googleCalendar: { connected: true, accessToken: response.access_token, tokenExpiry }
+                    }, { merge: true }).catch(console.error);
+                  }
                   alert('Successfully connected to Google Calendar!');
                 } else {
                   setSyncStatus('disconnected');
@@ -3325,10 +3801,12 @@
           setGoogleConnected(false);
           setGoogleAccessToken('');
           setSyncStatus('disconnected');
-          localStorage.removeItem('google_connected');
-          localStorage.removeItem('google_access_token');
-          localStorage.removeItem('google_token_expiry');
-          
+          if (currentUser) {
+            db.collection('users').doc(currentUser.uid).set({
+              googleCalendar: { connected: false, accessToken: '', tokenExpiry: 0 }
+            }, { merge: true }).catch(console.error);
+          }
+
           alert('Successfully signed out from Google Calendar.\n\nYou can now connect with a different account or reconfigure your setup.');
         };
 
@@ -3342,11 +3820,12 @@
           setGoogleAccessToken('');
           setGoogleClientId('');
           setSyncStatus('disconnected');
-          localStorage.removeItem('google_connected');
-          localStorage.removeItem('google_access_token');
-          localStorage.removeItem('google_token_expiry');
-          localStorage.removeItem('google_client_id');
-          
+          if (currentUser) {
+            db.collection('users').doc(currentUser.uid).set({
+              googleCalendar: { connected: false, accessToken: '', tokenExpiry: 0, clientId: '' }
+            }, { merge: true }).catch(console.error);
+          }
+
           alert('Google OAuth setup has been reset.\n\nClick "Set Up Google OAuth" to reconfigure.');
         };
 
@@ -3472,6 +3951,14 @@
                 const update = idUpdates.find(u => u.localId === e.id);
                 return update ? { ...e, googleEventId: update.googleEventId } : e;
               }));
+              // Also save updated IDs to Firestore
+              if (currentUser) {
+                const updatedEvts = idUpdates.map(u => {
+                  const evt = events.find(e => e.id === u.localId);
+                  return evt ? { ...evt, googleEventId: u.googleEventId } : null;
+                }).filter(Boolean);
+                saveEventsToFirestore(updatedEvts);
+              }
             }
 
             setSyncStatus('connected');
@@ -3557,6 +4044,7 @@
 
             if (newEvents.length > 0) {
               setEvents([...events, ...newEvents]);
+              saveEventsToFirestore(newEvents);
             }
 
             setSyncStatus('connected');
@@ -3690,6 +4178,12 @@
             // Step 4: Update events state with kept history + new Google events
             const finalEvents = [...eventsToKeep, ...newEvents];
             setEvents(finalEvents);
+
+            // Sync to Firestore: delete removed events, save new ones
+            const keptIds = new Set(eventsToKeep.map(e => e.id));
+            const removedIds = events.filter(e => !keptIds.has(e.id)).map(e => e.id);
+            deleteEventsFromFirestore(removedIds);
+            saveEventsToFirestore(newEvents);
 
             setSyncStatus('connected');
             
@@ -6996,6 +7490,29 @@
         setCurrentDate(newDate);
       };
 
+      // --- Render gates ---
+      if (authLoading) {
+        return (
+          <div className="loading-container">
+            <div className="loading-spinner"></div>
+            <div className="loading-text">Loading...</div>
+          </div>
+        );
+      }
+
+      if (!currentUser) {
+        return <AuthScreen />;
+      }
+
+      if (dataLoading) {
+        return (
+          <div className="loading-container">
+            <div className="loading-spinner"></div>
+            <div className="loading-text">Loading your data...</div>
+          </div>
+        );
+      }
+
       return (
         <div>
           <div className="countdown-bar">
@@ -7015,6 +7532,10 @@
             })}
             <button className="countdown-settings" onClick={() => setShowProjectModal(true)}>
               🎯
+            </button>
+            <button className="sign-out-btn" onClick={() => auth.signOut()}>
+              <span className="user-name">{currentUser.displayName || currentUser.email}</span>
+              <span>Sign Out</span>
             </button>
           </div>
 
@@ -7253,6 +7774,7 @@
                     if (confirm(`Delete ${selectedEventIds.length} selected event${selectedEventIds.length > 1 ? 's' : ''}? This cannot be undone.`)) {
                       deleteEventsFromGoogle(events.filter(e => selectedIdSet.has(e.id)));
                       setEvents(events.filter(e => !selectedIdSet.has(e.id)));
+                      deleteEventsFromFirestore([...selectedIdSet]);
                       setSelectedEventIds([]);
                       setIsSelectMode(false);
                       setViewRefreshKey(prev => prev + 1);
@@ -7357,6 +7879,7 @@
                         : new Set(recurringDeleteContext.selectedIds);
                       deleteEventsFromGoogle(events.filter(e => idsToDelete.has(e.id)));
                       setEvents(events.filter(e => !idsToDelete.has(e.id)));
+                      deleteEventsFromFirestore([...idsToDelete]);
                       setSelectedEventIds([]);
                       setIsSelectMode(false);
                       setShowRecurringDeleteModal(false);
@@ -7389,6 +7912,7 @@
                           ]);
                       deleteEventsFromGoogle(events.filter(e => idsToDelete.has(e.id)));
                       setEvents(events.filter(e => !idsToDelete.has(e.id)));
+                      deleteEventsFromFirestore([...idsToDelete]);
                       setSelectedEventIds([]);
                       setIsSelectMode(false);
                       setShowRecurringDeleteModal(false);
