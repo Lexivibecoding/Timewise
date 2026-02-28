@@ -1345,7 +1345,11 @@
         const headers = await getAuthHeaders();
         const res = await fetch(`${FIRESTORE_BASE}/${path}`, { headers });
         if (res.status === 404) return { exists: false, data: () => null };
-        if (!res.ok) throw new Error(`Firestore GET ${path}: ${res.status}`);
+        if (!res.ok) {
+          const errBody = await res.text().catch(() => '');
+          console.error(`[TimeWise] REST GET ${path} → ${res.status}:`, errBody);
+          throw new Error(`Firestore GET ${path}: ${res.status}`);
+        }
         const doc = await res.json();
         return { exists: true, data: () => docFieldsToJS(doc.fields) };
       },
@@ -1358,7 +1362,11 @@
           url += `?${masks.join('&')}`;
         }
         const res = await fetch(url, { method: 'PATCH', headers, body: JSON.stringify({ fields }) });
-        if (!res.ok) throw new Error(`Firestore SET ${path}: ${res.status}`);
+        if (!res.ok) {
+          const errBody = await res.text().catch(() => '');
+          console.error(`[TimeWise] REST SET ${path} → ${res.status}:`, errBody);
+          throw new Error(`Firestore SET ${path}: ${res.status} ${errBody}`);
+        }
       },
       delete: async () => {
         const headers = await getAuthHeaders();
@@ -1378,7 +1386,11 @@
         do {
           const url = `${FIRESTORE_BASE}/${path}${pageToken ? `?pageToken=${pageToken}` : ''}`;
           const res = await fetch(url, { headers });
-          if (!res.ok) throw new Error(`Firestore LIST ${path}: ${res.status}`);
+          if (!res.ok) {
+            const errBody = await res.text().catch(() => '');
+            console.error(`[TimeWise] REST LIST ${path} → ${res.status}:`, errBody);
+            throw new Error(`Firestore LIST ${path}: ${res.status}`);
+          }
           const json = await res.json();
           if (json.documents) {
             json.documents.forEach(d => {
@@ -1694,7 +1706,7 @@
 
             dataLoadedRef.current = true;
           } catch (err) {
-            console.error('[TimeWise] Firestore load error:', err.code, err.message);
+            console.error('[TimeWise] Firestore load error:', err.message || err);
             // If Firestore fails, fall back to localStorage so app still works
             console.log('[TimeWise] Falling back to localStorage');
             const savedEvents = localStorage.getItem('timewise_events');
