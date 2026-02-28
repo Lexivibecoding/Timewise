@@ -1538,7 +1538,7 @@
           dataLoadedRef.current = false;
           try {
             console.log('[TimeWise] Loading Firestore data for user:', uid);
-            const userDoc = await userRef.get({ source: 'server' });
+            const userDoc = await userRef.get();
 
             if (!userDoc.exists) {
               // First login — migrate from localStorage
