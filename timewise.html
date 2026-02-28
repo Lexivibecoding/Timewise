@@ -1276,7 +1276,7 @@
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
-    db.settings({ experimentalForceLongPolling: true, merge: true });
+    db.settings({ experimentalAutoDetectLongPolling: false, experimentalForceLongPolling: true, merge: true });
 
     // Test Firestore connectivity
     db.enableNetwork().then(() => {
