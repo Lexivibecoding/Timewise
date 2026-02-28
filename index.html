@@ -1275,29 +1275,148 @@
     };
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
-    const db = firebase.firestore();
-    db.settings({ experimentalAutoDetectLongPolling: false, experimentalForceLongPolling: true, merge: true });
+    // --- Firestore REST API wrapper (bypasses SDK WebSocket/WebChannel transport) ---
+    const FIRESTORE_BASE = 'https://firestore.googleapis.com/v1/projects/timewise-7ee81/databases/(default)/documents';
+    const FIRESTORE_DB = 'projects/timewise-7ee81/databases/(default)/documents';
 
-    // Test Firestore connectivity
-    db.enableNetwork().then(() => {
-      console.log('[TimeWise] Firestore network enabled');
-    }).catch(err => {
-      console.error('[TimeWise] Firestore network error:', err);
+    const getAuthHeaders = async () => {
+      const token = await auth.currentUser.getIdToken();
+      return { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+    };
+
+    // Convert Firestore REST typed values ↔ plain JS
+    const fromFV = (v) => {
+      if ('stringValue' in v) return v.stringValue;
+      if ('integerValue' in v) return parseInt(v.integerValue);
+      if ('doubleValue' in v) return v.doubleValue;
+      if ('booleanValue' in v) return v.booleanValue;
+      if ('nullValue' in v) return null;
+      if ('timestampValue' in v) return v.timestampValue;
+      if ('arrayValue' in v) return (v.arrayValue.values || []).map(fromFV);
+      if ('mapValue' in v) {
+        const o = {};
+        for (const [k, val] of Object.entries(v.mapValue.fields || {})) o[k] = fromFV(val);
+        return o;
+      }
+      return null;
+    };
+    const toFV = (v) => {
+      if (v === null || v === undefined) return { nullValue: null };
+      if (typeof v === 'string') return { stringValue: v };
+      if (typeof v === 'number') return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+      if (typeof v === 'boolean') return { booleanValue: v };
+      if (v instanceof Date) return { stringValue: v.toISOString() };
+      if (Array.isArray(v)) return { arrayValue: { values: v.map(toFV) } };
+      if (typeof v === 'object') {
+        const fields = {};
+        for (const [k, val] of Object.entries(v)) { if (val !== undefined) fields[k] = toFV(val); }
+        return { mapValue: { fields } };
+      }
+      return { nullValue: null };
+    };
+    const docFieldsToJS = (fields) => {
+      const o = {};
+      for (const [k, v] of Object.entries(fields || {})) o[k] = fromFV(v);
+      return o;
+    };
+    const jsToDocFields = (obj) => {
+      const fields = {};
+      for (const [k, v] of Object.entries(obj)) { if (v !== undefined) fields[k] = toFV(v); }
+      return fields;
+    };
+    // Flatten object keys to dot-notation paths (for merge updateMask)
+    const flattenPaths = (obj, prefix = '') => {
+      const paths = [];
+      for (const [k, v] of Object.entries(obj)) {
+        const p = prefix ? `${prefix}.${k}` : k;
+        if (v !== null && v !== undefined && typeof v === 'object' && !Array.isArray(v) && !(v instanceof Date))
+          paths.push(...flattenPaths(v, p));
+        else paths.push(p);
+      }
+      return paths;
+    };
+
+    // Doc reference (mimics Firestore SDK interface)
+    const makeDocRef = (path) => ({
+      path,
+      id: path.split('/').pop(),
+      collection: (name) => makeColRef(`${path}/${name}`),
+      get: async () => {
+        const headers = await getAuthHeaders();
+        const res = await fetch(`${FIRESTORE_BASE}/${path}`, { headers });
+        if (res.status === 404) return { exists: false, data: () => null };
+        if (!res.ok) throw new Error(`Firestore GET ${path}: ${res.status}`);
+        const doc = await res.json();
+        return { exists: true, data: () => docFieldsToJS(doc.fields) };
+      },
+      set: async (data, options) => {
+        const headers = await getAuthHeaders();
+        const fields = jsToDocFields(data);
+        let url = `${FIRESTORE_BASE}/${path}`;
+        if (options?.merge) {
+          const masks = flattenPaths(data).map(p => `updateMask.fieldPaths=${encodeURIComponent(p)}`);
+          url += `?${masks.join('&')}`;
+        }
+        const res = await fetch(url, { method: 'PATCH', headers, body: JSON.stringify({ fields }) });
+        if (!res.ok) throw new Error(`Firestore SET ${path}: ${res.status}`);
+      },
+      delete: async () => {
+        const headers = await getAuthHeaders();
+        const res = await fetch(`${FIRESTORE_BASE}/${path}`, { method: 'DELETE', headers });
+        if (!res.ok && res.status !== 404) throw new Error(`Firestore DELETE ${path}: ${res.status}`);
+      }
     });
 
-    // Retry helper — Firestore long polling needs time to establish connection
-    const firestoreGetWithRetry = async (ref, maxRetries = 3) => {
-      for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-          return await ref.get();
-        } catch (err) {
-          console.warn(`[TimeWise] Firestore get attempt ${attempt}/${maxRetries} failed:`, err.code);
-          if (attempt === maxRetries) throw err;
-          // Wait longer each retry: 2s, 4s, 6s — gives connection time to establish
-          await new Promise(r => setTimeout(r, attempt * 2000));
-        }
+    // Collection reference
+    const makeColRef = (path) => ({
+      path,
+      doc: (id) => makeDocRef(`${path}/${id}`),
+      get: async () => {
+        const headers = await getAuthHeaders();
+        const docs = [];
+        let pageToken = '';
+        do {
+          const url = `${FIRESTORE_BASE}/${path}${pageToken ? `?pageToken=${pageToken}` : ''}`;
+          const res = await fetch(url, { headers });
+          if (!res.ok) throw new Error(`Firestore LIST ${path}: ${res.status}`);
+          const json = await res.json();
+          if (json.documents) {
+            json.documents.forEach(d => {
+              docs.push({ id: d.name.split('/').pop(), data: () => docFieldsToJS(d.fields) });
+            });
+          }
+          pageToken = json.nextPageToken || '';
+        } while (pageToken);
+        return { forEach: (fn) => docs.forEach(fn), docs, empty: docs.length === 0 };
       }
+    });
+
+    // Batch writer
+    const makeBatch = () => {
+      const writes = [];
+      return {
+        set: (ref, data) => {
+          writes.push({ update: { name: `${FIRESTORE_DB}/${ref.path}`, fields: jsToDocFields(data) } });
+        },
+        delete: (ref) => {
+          writes.push({ delete: `${FIRESTORE_DB}/${ref.path}` });
+        },
+        commit: async () => {
+          if (writes.length === 0) return;
+          const headers = await getAuthHeaders();
+          const url = `https://firestore.googleapis.com/v1/projects/timewise-7ee81/databases/(default)/documents:commit`;
+          const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify({ writes }) });
+          if (!res.ok) throw new Error(`Firestore BATCH: ${res.status}`);
+        }
+      };
     };
+
+    // Drop-in replacement for firebase.firestore()
+    const db = {
+      collection: (name) => makeColRef(name),
+      batch: () => makeBatch()
+    };
+    console.log('[TimeWise] Using Firestore REST API transport');
 
     // Batch write helper — Firestore limit is 500 ops per batch
     const commitInBatches = async (operations) => {
@@ -1552,13 +1671,13 @@
           dataLoadedRef.current = false;
           try {
             console.log('[TimeWise] Loading Firestore data for user:', uid);
-            const userDoc = await firestoreGetWithRetry(userRef);
+            const userDoc = await userRef.get();
 
             if (!userDoc.exists) {
               // First login — migrate from localStorage
               const migrated = await migrateFromLocalStorage(uid);
               // Reload after migration
-              const freshDoc = await firestoreGetWithRetry(userRef);
+              const freshDoc = await userRef.get();
               if (cancelled) return;
               applyUserDoc(freshDoc.data() || {});
             } else {
@@ -1567,7 +1686,7 @@
             }
 
             // Load events subcollection
-            const eventsSnap = await firestoreGetWithRetry(userRef.collection('events'));
+            const eventsSnap = await userRef.collection('events').get();
             if (cancelled) return;
             const loadedEvents = [];
             eventsSnap.forEach(doc => loadedEvents.push(deserializeEvent(doc.data())));
