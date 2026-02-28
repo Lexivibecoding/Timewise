@@ -1276,8 +1276,8 @@
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     // --- Firestore REST API wrapper (bypasses SDK WebSocket/WebChannel transport) ---
-    const FIRESTORE_BASE = 'https://firestore.googleapis.com/v1/projects/timewise-7ee81/databases/(default)/documents';
-    const FIRESTORE_DB = 'projects/timewise-7ee81/databases/(default)/documents';
+    const FIRESTORE_BASE = 'https://firestore.googleapis.com/v1/projects/timewise-7ee81/databases/europetimewise/documents';
+    const FIRESTORE_DB = 'projects/timewise-7ee81/databases/europetimewise/documents';
 
     const getAuthHeaders = async () => {
       const token = await auth.currentUser.getIdToken();
@@ -1416,7 +1416,7 @@
         commit: async () => {
           if (writes.length === 0) return;
           const headers = await getAuthHeaders();
-          const url = `https://firestore.googleapis.com/v1/projects/timewise-7ee81/databases/(default)/documents:commit`;
+          const url = `https://firestore.googleapis.com/v1/projects/timewise-7ee81/databases/europetimewise/documents:commit`;
           const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify({ writes }) });
           if (!res.ok) throw new Error(`Firestore BATCH: ${res.status}`);
         }
