@@ -1285,6 +1285,20 @@
       console.error('[TimeWise] Firestore network error:', err);
     });
 
+    // Retry helper — Firestore long polling needs time to establish connection
+    const firestoreGetWithRetry = async (ref, maxRetries = 3) => {
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          return await ref.get();
+        } catch (err) {
+          console.warn(`[TimeWise] Firestore get attempt ${attempt}/${maxRetries} failed:`, err.code);
+          if (attempt === maxRetries) throw err;
+          // Wait longer each retry: 2s, 4s, 6s — gives connection time to establish
+          await new Promise(r => setTimeout(r, attempt * 2000));
+        }
+      }
+    };
+
     // Batch write helper — Firestore limit is 500 ops per batch
     const commitInBatches = async (operations) => {
       const BATCH_LIMIT = 499;
@@ -1538,13 +1552,13 @@
           dataLoadedRef.current = false;
           try {
             console.log('[TimeWise] Loading Firestore data for user:', uid);
-            const userDoc = await userRef.get();
+            const userDoc = await firestoreGetWithRetry(userRef);
 
             if (!userDoc.exists) {
               // First login — migrate from localStorage
               const migrated = await migrateFromLocalStorage(uid);
               // Reload after migration
-              const freshDoc = await userRef.get();
+              const freshDoc = await firestoreGetWithRetry(userRef);
               if (cancelled) return;
               applyUserDoc(freshDoc.data() || {});
             } else {
@@ -1553,7 +1567,7 @@
             }
 
             // Load events subcollection
-            const eventsSnap = await userRef.collection('events').get();
+            const eventsSnap = await firestoreGetWithRetry(userRef.collection('events'));
             if (cancelled) return;
             const loadedEvents = [];
             eventsSnap.forEach(doc => loadedEvents.push(deserializeEvent(doc.data())));
