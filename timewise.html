@@ -1615,7 +1615,8 @@
         { id: '1', name: 'Sleep', color: '#8e44ad' },
         { id: '2', name: 'Reading', color: '#3498db' },
         { id: '3', name: 'Working', color: '#e74c3c' },
-        { id: '4', name: 'Sports', color: '#f39c12' }
+        { id: '4', name: 'Sports', color: '#f39c12' },
+        { id: '5', name: 'Disruption', color: '#95a5a6' }
       ]);
       const [yearlyProjects, setYearlyProjects] = useState([
         { id: '1', name: 'Q4 Financial Report', deadline: new Date('2025-03-31') },
@@ -3309,6 +3310,9 @@
             actualEvent.endTime = actualEndTime;
             actualEvent.completionStatus = 'incomplete';
             actualEvent.incompleteReason = incompleteReason;
+            const disruptionCat = categories.find(c => c.name.toLowerCase() === 'disruption');
+            if (disruptionCat) actualEvent.categoryId = disruptionCat.id;
+            actualEvent.projectId = '';
           }
 
           const updatedEvent = {
@@ -3418,7 +3422,11 @@
                   </button>
                   <button 
                     className={`event-type-toggle ${completionType === 'incomplete' ? 'active' : ''}`}
-                    onClick={() => setCompletionType('incomplete')}
+                    onClick={() => {
+                      setCompletionType('incomplete');
+                      setActualStartTime(formatTime(new Date(event.startDateTime)));
+                      setActualEndTime(formatTime(new Date(event.endDateTime)));
+                    }}
                     style={{ width: '100%', padding: '12px', textAlign: 'left' }}
                   >
                     ❌ <strong>Not Completed</strong>
