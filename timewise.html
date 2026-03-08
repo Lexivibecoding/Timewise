@@ -4,16 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TimeWise - Time Management App</title>
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script crossorigin="anonymous" src="https://unpkg.com/react@18/umd/react.production.min.js" integrity="sha384-MhvFknC0AhqKZXwSCyPeIirpE1IhTafmLXTvTCai5pxjAqFcqEAAqKH/2lXrFVPn"></script>
+  <script crossorigin="anonymous" src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" integrity="sha384-VQePqH/QE94Buf4g/4MI5NrqDYjdqT7JW6KzhieQUlw6w7U7VD59fPqCAunpXEu6"></script>
+  <script crossorigin="anonymous" src="https://unpkg.com/@babel/standalone/babel.min.js" integrity="sha384-INIs+Uk31kgOEWzrnD1NTqUMUPX27At97VZKni20gDB/lEo8L3rtcuwDGbI0l9m1"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script crossorigin="anonymous" src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js" integrity="sha384-AQ3POAMqIhwS81FrUH95ekxqBZHeP5tG2JfEL3+7GuTtfRLWnrRh32UxwzM+//A9"></script>
+  <script crossorigin="anonymous" src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js" integrity="sha384-TnlRYaR4JYz/lpaGuaiU61PjNberSA4vjLjtF+oRC/IkohkJqnWxw5EmDSOt1vA1"></script>
+  <script crossorigin="anonymous" src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js" integrity="sha384-qn4Jh88HhJA8dplNQyGjOh9OGI4izVhrfj/qIFgaKcdgOE06pXqIKGlsCILZcLAC"></script>
 
   <style>
     * {
@@ -1446,16 +1446,16 @@
       const data = {};
 
       const savedCategories = localStorage.getItem('timewise_categories');
-      if (savedCategories) data.categories = JSON.parse(savedCategories);
+      if (savedCategories) { const parsed = safeParse(savedCategories); if (parsed) data.categories = parsed; }
 
       const savedProjects = localStorage.getItem('timewise_projects');
-      if (savedProjects) data.projects = JSON.parse(savedProjects);
+      if (savedProjects) { const parsed = safeParse(savedProjects); if (parsed) data.projects = parsed; }
 
       const savedIncompleteReasons = localStorage.getItem('timewise_incomplete_reasons');
-      if (savedIncompleteReasons) data.incompleteReasons = JSON.parse(savedIncompleteReasons);
+      if (savedIncompleteReasons) { const parsed = safeParse(savedIncompleteReasons); if (parsed) data.incompleteReasons = parsed; }
 
       const savedWeeklyGoals = localStorage.getItem('weekly_goals');
-      if (savedWeeklyGoals) data.weeklyGoals = JSON.parse(savedWeeklyGoals);
+      if (savedWeeklyGoals) { const parsed = safeParse(savedWeeklyGoals); if (parsed) data.weeklyGoals = parsed; }
 
       const savedJournalUrl = localStorage.getItem('journal_doc_url');
       if (savedJournalUrl) data.journalDocUrl = savedJournalUrl;
@@ -1463,17 +1463,17 @@
       const savedGoogleConnection = localStorage.getItem('google_connected');
       const savedClientId = localStorage.getItem('google_client_id');
       const savedSheetUrl = localStorage.getItem('google_sheet_url');
-      const savedAccessToken = localStorage.getItem('google_access_token');
-      const savedTokenExpiry = localStorage.getItem('google_token_expiry');
       if (savedClientId || savedSheetUrl) {
         data.googleCalendar = {
-          connected: savedGoogleConnection === 'true',
+          connected: false,
           clientId: savedClientId || '',
           sheetUrl: savedSheetUrl || '',
-          accessToken: savedAccessToken || '',
-          tokenExpiry: savedTokenExpiry ? parseInt(savedTokenExpiry) : 0
         };
       }
+      // Clean up any legacy token storage from localStorage
+      localStorage.removeItem('google_access_token');
+      localStorage.removeItem('google_token_expiry');
+      localStorage.removeItem('google_connected');
 
       data.profile = {
         email: auth.currentUser?.email || '',
@@ -1487,7 +1487,7 @@
       // Migrate events to subcollection
       const savedEvents = localStorage.getItem('timewise_events');
       if (savedEvents) {
-        const events = JSON.parse(savedEvents);
+        const events = safeParse(savedEvents, []);
         if (events.length > 0) {
           const ops = events.map(event => (batch) => {
             const ref = userRef.collection('events').doc(event.id);
@@ -1512,6 +1512,18 @@
     const Target = () => <span>🎯</span>;
     const Grid = () => <span>📅</span>;
     const List = () => <span>📋</span>;
+
+    // Input sanitization
+    const sanitize = (str, maxLength = 200) => {
+      if (typeof str !== 'string') return '';
+      return str.trim().slice(0, maxLength);
+    };
+
+    // Safe JSON parse — returns fallback on corrupted data
+    const safeParse = (str, fallback = null) => {
+      try { return JSON.parse(str); }
+      catch (e) { console.warn('[TimeWise] Failed to parse stored data:', e.message); return fallback; }
+    };
 
     // Utility functions
     const formatDate = (date) => {
@@ -1716,11 +1728,11 @@
             const savedIncompleteReasons = localStorage.getItem('timewise_incomplete_reasons');
             const savedWeeklyGoals = localStorage.getItem('weekly_goals');
             const savedJournalUrl = localStorage.getItem('journal_doc_url');
-            if (savedEvents) setEvents(JSON.parse(savedEvents));
-            if (savedCategories) setCategories(JSON.parse(savedCategories));
-            if (savedProjects) setYearlyProjects(JSON.parse(savedProjects).map(p => ({ ...p, deadline: new Date(p.deadline) })));
-            if (savedIncompleteReasons) setIncompleteReasons(JSON.parse(savedIncompleteReasons));
-            if (savedWeeklyGoals) setWeeklyGoals(JSON.parse(savedWeeklyGoals));
+            if (savedEvents) { const parsed = safeParse(savedEvents, []); if (parsed.length) setEvents(parsed); }
+            if (savedCategories) { const parsed = safeParse(savedCategories); if (parsed) setCategories(parsed); }
+            if (savedProjects) { const parsed = safeParse(savedProjects); if (parsed) setYearlyProjects(parsed.map(p => ({ ...p, deadline: new Date(p.deadline) }))); }
+            if (savedIncompleteReasons) { const parsed = safeParse(savedIncompleteReasons); if (parsed) setIncompleteReasons(parsed); }
+            if (savedWeeklyGoals) { const parsed = safeParse(savedWeeklyGoals); if (parsed) setWeeklyGoals(parsed); }
             if (savedJournalUrl) setJournalDocUrl(savedJournalUrl);
             dataLoadedRef.current = true;
           }
@@ -1742,13 +1754,7 @@
             const gc = data.googleCalendar;
             if (gc.sheetUrl) setGoogleSheetUrl(gc.sheetUrl);
             if (gc.clientId) setGoogleClientId(gc.clientId);
-            if (gc.connected && gc.accessToken && gc.tokenExpiry) {
-              if (Date.now() < gc.tokenExpiry) {
-                setGoogleConnected(true);
-                setGoogleAccessToken(gc.accessToken);
-                setSyncStatus('connected');
-              }
-            }
+            // Tokens are no longer persisted — user must re-authenticate each session
           }
         };
 
@@ -2227,13 +2233,17 @@
         };
 
         const handleSave = () => {
-          if (!eventData.title.trim()) {
+          const cleanTitle = sanitize(eventData.title, 100);
+          if (!cleanTitle) {
             alert('Please enter an event title');
             return;
           }
-          
+
           const eventToSave = {
             ...eventData,
+            title: cleanTitle,
+            description: sanitize(eventData.description, 500),
+            location: sanitize(eventData.location, 200),
             startDateTime: new Date(`${eventData.startDate}T${eventData.startTime}`),
             endDateTime: new Date(`${eventData.endDate}T${eventData.endTime}`)
           };
@@ -2561,10 +2571,12 @@
         const [editingCategory, setEditingCategory] = useState(null);
 
         const addCategory = () => {
-          if (newCategory.name.trim()) {
-            setCategories([...categories, { 
-              id: Date.now().toString(), 
-              ...newCategory 
+          const cleanName = sanitize(newCategory.name, 50);
+          if (cleanName) {
+            setCategories([...categories, {
+              id: Date.now().toString(),
+              name: cleanName,
+              color: newCategory.color
             }]);
             setNewCategory({ name: '', color: '#6b9b7a' });
           }
@@ -2579,10 +2591,11 @@
         };
 
         const saveEdit = () => {
-          if (editingCategory && editingCategory.name.trim()) {
+          const cleanName = sanitize(editingCategory?.name, 50);
+          if (editingCategory && cleanName) {
             setCategories(categories.map(cat =>
               cat.id === editingCategory.id
-                ? { ...cat, name: editingCategory.name, color: editingCategory.color }
+                ? { ...cat, name: cleanName, color: editingCategory.color }
                 : cat
             ));
             setEditingCategory(null);
@@ -2687,10 +2700,11 @@
         const [editingProject, setEditingProject] = useState(null);
 
         const addProject = () => {
-          if (newProject.name.trim() && yearlyProjects.length < 3) {
+          const cleanName = sanitize(newProject.name, 100);
+          if (cleanName && yearlyProjects.length < 3) {
             setYearlyProjects([...yearlyProjects, {
               id: Date.now().toString(),
-              name: newProject.name,
+              name: cleanName,
               deadline: new Date(newProject.deadline),
               plannedHours: parseFloat(newProject.plannedHours) || 0
             }]);
@@ -2708,12 +2722,13 @@
         };
 
         const saveEdit = () => {
-          if (editingProject && editingProject.name.trim()) {
-            setYearlyProjects(yearlyProjects.map(p => 
-              p.id === editingProject.id 
-                ? { 
-                    ...p, 
-                    name: editingProject.name, 
+          const cleanName = sanitize(editingProject?.name, 100);
+          if (editingProject && cleanName) {
+            setYearlyProjects(yearlyProjects.map(p =>
+              p.id === editingProject.id
+                ? {
+                    ...p,
+                    name: cleanName, 
                     deadline: new Date(editingProject.deadline),
                     plannedHours: parseFloat(editingProject.plannedHours) || 0
                   }
@@ -3294,14 +3309,14 @@
             actualEvent.endDate = formatDate(lateEndDateTime);
             actualEvent.endTime = formatTime(lateEndDateTime);
             actualEvent.completionStatus = 'completed_late';
-            actualEvent.lateReason = lateReason;
+            actualEvent.lateReason = sanitize(lateReason, 300);
           } else {
             if (!incompleteReason || !actualEventTitle || !actualStartTime || !actualEndTime) {
               alert('Please fill in all required fields');
               return;
             }
             const startDate = formatDate(new Date(event.startDateTime));
-            actualEvent.title = actualEventTitle;
+            actualEvent.title = sanitize(actualEventTitle, 100);
             actualEvent.startDateTime = new Date(`${startDate}T${actualStartTime}`);
             actualEvent.endDateTime = new Date(`${startDate}T${actualEndTime}`);
             actualEvent.startDate = startDate;
@@ -3934,11 +3949,7 @@
                   setGoogleAccessToken(response.access_token);
                   setGoogleConnected(true);
                   setSyncStatus('connected');
-                  if (currentUser) {
-                    db.collection('users').doc(currentUser.uid).set({
-                      googleCalendar: { connected: true, accessToken: response.access_token, tokenExpiry }
-                    }, { merge: true }).catch(console.error);
-                  }
+                  // Token kept in memory only — not persisted to Firestore or localStorage
                   alert('Successfully connected to Google Calendar!');
                 } else {
                   setSyncStatus('disconnected');
@@ -3980,7 +3991,7 @@
           setSyncStatus('disconnected');
           if (currentUser) {
             db.collection('users').doc(currentUser.uid).set({
-              googleCalendar: { connected: false, accessToken: '', tokenExpiry: 0 }
+              googleCalendar: { connected: false }
             }, { merge: true }).catch(console.error);
           }
 
@@ -3999,7 +4010,7 @@
           setSyncStatus('disconnected');
           if (currentUser) {
             db.collection('users').doc(currentUser.uid).set({
-              googleCalendar: { connected: false, accessToken: '', tokenExpiry: 0, clientId: '' }
+              googleCalendar: { connected: false, clientId: '' }
             }, { merge: true }).catch(console.error);
           }
 
