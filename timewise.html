@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://accounts.google.com https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://firestore.googleapis.com https://www.googleapis.com https://oauth2.googleapis.com https://*.firebaseapp.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; img-src 'self' data: https:; frame-src https://accounts.google.com https://*.firebaseapp.com; frame-ancestors 'none';">
   <title>TimeWise - Time Management App</title>
   <script crossorigin="anonymous" src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z"></script>
   <script crossorigin="anonymous" src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1"></script>
@@ -1519,6 +1520,14 @@
       return str.trim().slice(0, maxLength);
     };
 
+    // URL validation — only allow https URLs
+    const isSafeUrl = (url) => {
+      try {
+        const parsed = new URL(url);
+        return parsed.protocol === 'https:';
+      } catch { return false; }
+    };
+
     // Safe JSON parse — returns fallback on corrupted data
     const safeParse = (str, fallback = null) => {
       try { return JSON.parse(str); }
@@ -1558,6 +1567,12 @@
         e.preventDefault();
         setError('');
         if (!email || !password) { setError('Please fill in all fields'); return; }
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) { setError('Please enter a valid email address'); return; }
+        if (isSignUp && password.length < 8) { setError('Password must be at least 8 characters'); return; }
+        if (isSignUp && (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password))) {
+          setError('Password must include uppercase, lowercase, and a number'); return;
+        }
         setLoading(true);
         try {
           if (isSignUp) {
@@ -1634,6 +1649,7 @@
         { id: '1', name: 'Q4 Financial Report', deadline: new Date('2025-03-31') },
         { id: '2', name: 'Yoga Certification', deadline: new Date('2025-06-15') }
       ]);
+      const [editingEventId, setEditingEventId] = useState(null);
       const [showEventModal, setShowEventModal] = useState(false);
       const [showCategoryModal, setShowCategoryModal] = useState(false);
       const [showProjectModal, setShowProjectModal] = useState(false);
@@ -2249,15 +2265,15 @@
           };
 
           // Check if we're editing an existing event
-          if (window.__editingEventId) {
+          if (editingEventId) {
             // Update existing event
             const updated = events.map(e =>
-              e.id === window.__editingEventId ? { ...e, ...eventToSave } : e
+              e.id === editingEventId ? { ...e, ...eventToSave } : e
             );
             setEvents(updated);
-            const savedEvt = updated.find(e => e.id === window.__editingEventId);
+            const savedEvt = updated.find(e => e.id === editingEventId);
             if (savedEvt) saveEventToFirestore(savedEvt);
-            window.__editingEventId = null;
+            setEditingEventId(null);
           } else {
             // Create new event(s) with recurrence
             const newEvents = createRecurringEvents(eventToSave);
@@ -2278,8 +2294,8 @@
         };
 
         const handleDelete = () => {
-          if (window.__editingEventId) {
-            const eventToDelete = events.find(e => e.id === window.__editingEventId);
+          if (editingEventId) {
+            const eventToDelete = events.find(e => e.id === editingEventId);
             if (!eventToDelete) return;
 
             // Smart recurring detection: same title, type, AND similar time-of-day
@@ -2288,7 +2304,7 @@
             if (recurringMatches.length > 0) {
               // Open the RecurringDeleteModal instead of confirm()
               setRecurringDeleteContext({
-                eventId: window.__editingEventId,
+                eventId: editingEventId,
                 additionalRecurring: recurringMatches,
                 source: 'single'
               });
@@ -2318,7 +2334,7 @@
                 if (!confirm('Delete this single event?')) {
                   return;
                 }
-                deleteIds = new Set([window.__editingEventId]);
+                deleteIds = new Set([editingEventId]);
               }
 
               deleteEventsFromGoogle(events.filter(e => deleteIds.has(e.id)));
@@ -2328,13 +2344,13 @@
               if (!confirm('Are you sure you want to delete this event?')) {
                 return;
               }
-              const evtToDelete = events.find(e => e.id === window.__editingEventId);
+              const evtToDelete = events.find(e => e.id === editingEventId);
               if (evtToDelete) deleteEventsFromGoogle([evtToDelete]);
-              setEvents(events.filter(e => e.id !== window.__editingEventId));
-              deleteEventFromFirestore(window.__editingEventId);
+              setEvents(events.filter(e => e.id !== editingEventId));
+              deleteEventFromFirestore(editingEventId);
             }
 
-            window.__editingEventId = null;
+            setEditingEventId(null);
 
             // Force view refresh
             setTimeout(() => {
@@ -2349,10 +2365,10 @@
           <div className="modal-overlay" onClick={() => {
             setShowEventModal(false);
             setPrefilledEventData(null);
-            window.__editingEventId = null;
+            setEditingEventId(null);
           }}>
             <div className="modal" onClick={e => e.stopPropagation()}>
-              <h2>{window.__editingEventId ? 'Edit Event' : 'Create Event'}</h2>
+              <h2>{editingEventId ? 'Edit Event' : 'Create Event'}</h2>
               
               <div className="form-group">
                 <label>Event Type</label>
@@ -2514,9 +2530,9 @@
               <div className="modal-actions" style={{ 
                 display: 'flex', 
                 gap: '8px', 
-                justifyContent: window.__editingEventId ? 'space-between' : 'flex-end' 
+                justifyContent: editingEventId ? 'space-between' : 'flex-end' 
               }}>
-                {window.__editingEventId && (
+                {editingEventId && (
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button
                       className="btn-secondary"
@@ -2535,7 +2551,7 @@
                       className="btn-secondary"
                       disabled={!googleConnected}
                       onClick={() => {
-                        const evt = events.find(e => e.id === window.__editingEventId);
+                        const evt = events.find(e => e.id === editingEventId);
                         if (evt) pushEventToGoogle(evt);
                       }}
                       style={{
@@ -2556,7 +2572,7 @@
                   <button className="btn-secondary" onClick={() => {
                     setShowEventModal(false);
                     setPrefilledEventData(null);
-                    window.__editingEventId = null;
+                    setEditingEventId(null);
                   }}>Cancel</button>
                   <button className="btn-primary" onClick={handleSave}>Save Event</button>
                 </div>
@@ -3384,7 +3400,7 @@
                         projectId: event.projectId || ''
                       });
                       // Store the original event ID for updating
-                      window.__editingEventId = event.id;
+                      setEditingEventId(event.id);
                       setShowEventModal(true);
                     }}
                     style={{ width: '100%', padding: '12px', textAlign: 'left', marginBottom: '12px' }}
@@ -3609,8 +3625,10 @@
         };
         
         const handleOpen = () => {
-          if (docUrl) {
-            window.open(docUrl, '_blank');
+          if (docUrl && isSafeUrl(docUrl)) {
+            window.open(docUrl, '_blank', 'noopener,noreferrer');
+          } else if (docUrl) {
+            alert('Please enter a valid HTTPS URL.');
           } else {
             alert('Please set your Google Docs link first.');
           }
@@ -3889,7 +3907,7 @@
                   How to get your OAuth Client ID:
                 </h4>
                 <ol style={{ fontSize: '13px', color: '#6b9b7a', paddingLeft: '20px', margin: 0, lineHeight: '1.8' }}>
-                  <li>Go to <a href="https://console.cloud.google.com" target="_blank" style={{ color: '#4285f4' }}>Google Cloud Console</a></li>
+                  <li>Go to <a href="https://console.cloud.google.com" target="_blank" rel="noopener noreferrer" style={{ color: '#4285f4' }}>Google Cloud Console</a></li>
                   <li>Create a new project or select existing one</li>
                   <li>Enable "Google Calendar API"</li>
                   <li>Go to "Credentials" → "Create Credentials" → "OAuth client ID"</li>
@@ -6340,7 +6358,7 @@
                                     recurrence: 'once',
                                     recurrenceEndDate: ''
                                   });
-                                  window.__editingEventId = null;
+                                  setEditingEventId(null);
                                   setShowEventModal(true);
                                 }
                               }}
@@ -6398,7 +6416,7 @@
                                       location: event.location || '',
                                       projectId: event.projectId || ''
                                     });
-                                    window.__editingEventId = event.id;
+                                    setEditingEventId(event.id);
                                     setShowEventModal(true);
                                   }
                                 }}
@@ -6560,7 +6578,7 @@
                                         location: event.location || '',
                                         projectId: event.projectId || ''
                                       });
-                                      window.__editingEventId = event.id;
+                                      setEditingEventId(event.id);
                                       setShowEventModal(true);
                                     }
                                   }
@@ -7554,7 +7572,7 @@
                   </div>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button
-                      onClick={() => window.open(journalDocUrl, '_blank')}
+                      onClick={() => isSafeUrl(journalDocUrl) ? window.open(journalDocUrl, '_blank', 'noopener,noreferrer') : alert('Invalid URL')}
                       style={{
                         background: 'linear-gradient(135deg, #4a7c59 0%, #3d6b4a 100%)',
                         color: 'white',
@@ -8076,7 +8094,7 @@
                       if (recurringDeleteContext.source === 'single') {
                         setShowEventModal(false);
                         setPrefilledEventData(null);
-                        window.__editingEventId = null;
+                        setEditingEventId(null);
                       }
                     }}
                     style={{ width: '100%', justifyContent: 'center' }}
@@ -8109,7 +8127,7 @@
                       if (recurringDeleteContext.source === 'single') {
                         setShowEventModal(false);
                         setPrefilledEventData(null);
-                        window.__editingEventId = null;
+                        setEditingEventId(null);
                       }
                     }}
                     style={{
