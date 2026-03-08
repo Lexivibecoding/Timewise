@@ -1457,6 +1457,9 @@
       const savedWeeklyGoals = localStorage.getItem('weekly_goals');
       if (savedWeeklyGoals) data.weeklyGoals = JSON.parse(savedWeeklyGoals);
 
+      const savedMonthlyHabits = localStorage.getItem('timewise_monthly_habits');
+      if (savedMonthlyHabits) data.monthlyHabits = JSON.parse(savedMonthlyHabits);
+
       const savedJournalUrl = localStorage.getItem('journal_doc_url');
       if (savedJournalUrl) data.journalDocUrl = savedJournalUrl;
 
@@ -1653,6 +1656,10 @@
       const [showJournalModal, setShowJournalModal] = useState(false);
       const [showWeeklyReflectionModal, setShowWeeklyReflectionModal] = useState(false);
 
+      // Monthly Habits
+      const [monthlyHabits, setMonthlyHabits] = useState({}); // { 'YYYY-MM': { habits: [{ name, days: { 1: true, 2: false, ... } }] } }
+      const [showHabitModal, setShowHabitModal] = useState(false);
+
       // Weekly view interactive state
       const [isSelectMode, setIsSelectMode] = useState(false);
       const [selectedEventIds, setSelectedEventIds] = useState([]);
@@ -1721,6 +1728,8 @@
             if (savedIncompleteReasons) setIncompleteReasons(JSON.parse(savedIncompleteReasons));
             if (savedWeeklyGoals) setWeeklyGoals(JSON.parse(savedWeeklyGoals));
             if (savedJournalUrl) setJournalDocUrl(savedJournalUrl);
+            const savedMonthlyHabits2 = localStorage.getItem('timewise_monthly_habits');
+            if (savedMonthlyHabits2) setMonthlyHabits(JSON.parse(savedMonthlyHabits2));
             dataLoadedRef.current = true;
           }
           if (!cancelled) setDataLoading(false);
@@ -1737,6 +1746,7 @@
           if (data.incompleteReasons) setIncompleteReasons(data.incompleteReasons);
           if (data.weeklyGoals) setWeeklyGoals(data.weeklyGoals);
           if (data.journalDocUrl) setJournalDocUrl(data.journalDocUrl);
+          if (data.monthlyHabits) setMonthlyHabits(data.monthlyHabits);
           if (data.googleCalendar) {
             const gc = data.googleCalendar;
             if (gc.sheetUrl) setGoogleSheetUrl(gc.sheetUrl);
@@ -1784,6 +1794,11 @@
         if (!currentUser || !dataLoadedRef.current) return;
         db.collection('users').doc(currentUser.uid).set({ weeklyGoals }, { merge: true }).catch(console.error);
       }, [weeklyGoals]);
+
+      useEffect(() => {
+        if (!currentUser || !dataLoadedRef.current) return;
+        db.collection('users').doc(currentUser.uid).set({ monthlyHabits }, { merge: true }).catch(console.error);
+      }, [monthlyHabits]);
 
       // Convert Date objects to ISO strings for Firestore storage
       const serializeEvent = (event) => {
@@ -1858,6 +1873,70 @@
         const pastDaysOfYear = (d - firstDayOfYear) / 86400000;
         const weekNumber = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
         return `${year}-W${String(weekNumber).padStart(2, '0')}`;
+      };
+
+      // Get ISO week number for a date
+      const getWeekNumber = (date) => {
+        const d = new Date(date);
+        d.setHours(0, 0, 0, 0);
+        d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+        const week1 = new Date(d.getFullYear(), 0, 4);
+        return 1 + Math.round(((d - week1) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
+      };
+
+      // Get month key (YYYY-MM format)
+      const getMonthKey = (date) => {
+        const d = new Date(date);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      };
+
+      // Calculate habit streak (consecutive months with >50% completion)
+      const getHabitStreak = (habitName) => {
+        let streak = 0;
+        const now = new Date();
+        let checkDate = new Date(now.getFullYear(), now.getMonth(), 1);
+
+        while (true) {
+          const key = getMonthKey(checkDate);
+          const monthData = monthlyHabits[key];
+          if (!monthData || !monthData.habits) break;
+
+          const habit = monthData.habits.find(h => h.name === habitName);
+          if (!habit || !habit.days) break;
+
+          const daysInMonth = new Date(checkDate.getFullYear(), checkDate.getMonth() + 1, 0).getDate();
+          const isPastMonth = checkDate.getMonth() !== now.getMonth() || checkDate.getFullYear() !== now.getFullYear();
+          const totalDays = isPastMonth ? daysInMonth : now.getDate();
+          const completedDays = Object.values(habit.days).filter(v => v === true).length;
+
+          if (totalDays > 0 && (completedDays / totalDays) > 0.5) {
+            streak++;
+            checkDate.setMonth(checkDate.getMonth() - 1);
+          } else {
+            break;
+          }
+        }
+        return streak;
+      };
+
+      // Get incomplete reasons summary for a month
+      const getMonthlyIncompleteReasons = (year, month) => {
+        const monthEvents = events.filter(e => {
+          const d = new Date(e.startDateTime);
+          return d.getFullYear() === year && d.getMonth() === month && e.type === 'actual' && e.incompleteReason;
+        });
+
+        const reasonCounts = {};
+        monthEvents.forEach(e => {
+          const reason = e.incompleteReason;
+          reasonCounts[reason] = (reasonCounts[reason] || 0) + 1;
+        });
+
+        const sorted = Object.entries(reasonCounts)
+          .map(([reason, count]) => ({ reason, count }))
+          .sort((a, b) => b.count - a.count);
+
+        return { reasons: sorted, totalIncomplete: monthEvents.length };
       };
 
       // Get current week's data
@@ -3821,6 +3900,113 @@
         );
       };
 
+      const HabitModal = () => {
+        const monthKey = getMonthKey(currentDate);
+        const currentData = monthlyHabits[monthKey] || { habits: [] };
+        const [newHabitName, setNewHabitName] = useState('');
+
+        const addHabit = () => {
+          const name = newHabitName.trim();
+          if (!name) return;
+          if (currentData.habits.some(h => h.name === name)) {
+            alert('Habit already exists!');
+            return;
+          }
+          const updated = {
+            ...monthlyHabits,
+            [monthKey]: {
+              habits: [...currentData.habits, { name, days: {} }]
+            }
+          };
+          setMonthlyHabits(updated);
+          setNewHabitName('');
+        };
+
+        const removeHabit = (habitName) => {
+          const updated = {
+            ...monthlyHabits,
+            [monthKey]: {
+              habits: currentData.habits.filter(h => h.name !== habitName)
+            }
+          };
+          setMonthlyHabits(updated);
+        };
+
+        return (
+          <div className="modal-overlay" onClick={() => setShowHabitModal(false)}>
+            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+              <h2 style={{ marginBottom: '8px', color: '#2d5a3d' }}>
+                Manage Habits
+              </h2>
+              <p style={{ fontSize: '13px', color: '#6b9b7a', marginBottom: '20px' }}>
+                {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              </p>
+
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+                <input
+                  type="text"
+                  value={newHabitName}
+                  onChange={e => setNewHabitName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addHabit()}
+                  placeholder="New habit name..."
+                  style={{
+                    flex: 1,
+                    padding: '10px 12px',
+                    border: '2px solid #e0f0e8',
+                    borderRadius: '8px',
+                    fontSize: '14px'
+                  }}
+                />
+                <button className="btn-primary" onClick={addHabit} style={{ padding: '10px 20px' }}>
+                  + Add
+                </button>
+              </div>
+
+              {currentData.habits.length === 0 && (
+                <p style={{ color: '#6b9b7a', textAlign: 'center', padding: '20px', fontSize: '13px' }}>
+                  No habits yet. Add one above!
+                </p>
+              )}
+
+              {currentData.habits.map(habit => (
+                <div key={habit.name} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 12px',
+                  background: '#f5f7f5',
+                  borderRadius: '8px',
+                  marginBottom: '8px'
+                }}>
+                  <span style={{ fontWeight: 500, color: '#2d5a3d' }}>{habit.name}</span>
+                  <button
+                    onClick={() => removeHabit(habit.name)}
+                    style={{
+                      background: '#fee2e2',
+                      border: 'none',
+                      color: '#dc2626',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      fontWeight: 600
+                    }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+
+              <div className="modal-actions" style={{ marginTop: '20px' }}>
+                <button className="btn-secondary" onClick={() => setShowHabitModal(false)}>
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      };
+
       const GoogleSetupModal = () => {
         const [clientId, setClientId] = useState(googleClientId);
 
@@ -5168,6 +5354,19 @@
 
         const plannedStats = calculateStats('planned');
         const actualStats = calculateStats('actual');
+
+        // Sort categories by hours descending
+        plannedStats.categoryStats.sort((a, b) => b.hours - a.hours);
+        actualStats.categoryStats.sort((a, b) => b.hours - a.hours);
+        actualStats.projectStats.sort((a, b) => b.hours - a.hours);
+
+        // Compute max hours across both planned and actual for comparable bar widths
+        const allCatHours = [
+          ...plannedStats.categoryStats.map(s => s.hours),
+          ...actualStats.categoryStats.map(s => s.hours)
+        ];
+        const maxCategoryHours = Math.max(...allCatHours, 0.1);
+
         const hasPlannedData = plannedStats.categoryStats.some(stat => stat.hours > 0);
         const hasActualData = actualStats.categoryStats.some(stat => stat.hours > 0);
 
@@ -5300,24 +5499,23 @@
                         {plannedStats.categoryStats.filter(s => s.hours > 0).map(stat => (
                           <div key={stat.id} className="stat-item">
                             <div className="stat-header">
-                              <div className="stat-color" style={{ 
+                              <div className="stat-color" style={{
                                 backgroundColor: stat.color,
                                 borderStyle: 'dashed',
                                 borderWidth: '2px'
                               }}></div>
                               <span className="stat-name">{stat.name}</span>
-                              <span className="stat-hours">{stat.hours}h</span>
+                              <span className="stat-hours">{stat.hours}h ({stat.percentage}%)</span>
                             </div>
                             <div className="stat-bar">
-                              <div 
-                                className="stat-fill" 
-                                style={{ 
-                                  width: `${stat.percentage}%`,
+                              <div
+                                className="stat-fill"
+                                style={{
+                                  width: `${(stat.hours / maxCategoryHours) * 100}%`,
                                   background: `linear-gradient(135deg, ${stat.color}30 0%, ${stat.color}50 100%)`
                                 }}
                               ></div>
                             </div>
-                            <div className="stat-percentage">{stat.percentage}%</div>
                           </div>
                         ))}
                       </div>
@@ -5357,18 +5555,17 @@
                             <div className="stat-header">
                               <div className="stat-color" style={{ backgroundColor: stat.color }}></div>
                               <span className="stat-name">{stat.name}</span>
-                              <span className="stat-hours">{stat.hours}h</span>
+                              <span className="stat-hours">{stat.hours}h ({stat.percentage}%)</span>
                             </div>
                             <div className="stat-bar">
-                              <div 
-                                className="stat-fill" 
-                                style={{ 
-                                  width: `${stat.percentage}%`,
+                              <div
+                                className="stat-fill"
+                                style={{
+                                  width: `${(stat.hours / maxCategoryHours) * 100}%`,
                                   background: `linear-gradient(135deg, ${stat.color}B0 0%, ${stat.color}D0 100%)`
                                 }}
                               ></div>
                             </div>
-                            <div className="stat-percentage">{stat.percentage}%</div>
                           </div>
                         ))}
                       </div>
@@ -6115,8 +6312,17 @@
               alignItems: 'center',
               justifyContent: 'space-between'
             }}>
-              <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '600', color: '#2d5a3d' }}>
+              <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '600', color: '#2d5a3d', display: 'flex', alignItems: 'center', gap: '12px' }}>
                 {weekStart.toLocaleDateString('default', { month: 'short', day: 'numeric' })} - {weekEnd.toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' })}
+                <span style={{
+                  background: '#e8f5eb',
+                  color: '#2d5a3d',
+                  padding: '4px 12px',
+                  borderRadius: '20px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  border: '1px solid #4a7c59'
+                }}>Week {getWeekNumber(weekStart)}</span>
               </h2>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <button
@@ -6440,6 +6646,9 @@
         const lastDay = new Date(year, month + 1, 0);
         const startingDayOfWeek = firstDay.getDay();
         const daysInMonth = lastDay.getDate();
+        const monthKey = getMonthKey(currentDate);
+        const now = new Date();
+        const isCurrentMonth = month === now.getMonth() && year === now.getFullYear();
 
         const days = [];
         for (let i = 0; i < startingDayOfWeek; i++) {
@@ -6451,7 +6660,6 @@
 
         const getEventsForDay = (day) => {
           if (!day) return [];
-          const date = new Date(year, month, day);
           return events.filter(e => {
             const eventDate = new Date(e.startDateTime);
             return eventDate.getDate() === day &&
@@ -6460,106 +6668,325 @@
           });
         };
 
-        return (
-          <div className="calendar-grid">
-            {/* Select Mode Toggle */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
-              <button
-                className={`select-mode-toggle ${isSelectMode ? 'active' : ''}`}
-                onClick={() => {
-                  setIsSelectMode(!isSelectMode);
-                  if (isSelectMode) setSelectedEventIds([]);
-                }}
-              >
-                {isSelectMode ? '✕ Exit Select' : '☑ Select Mode'}
-              </button>
-            </div>
-            <div className="calendar-header">
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                <div key={day} className="calendar-day-header">{day}</div>
-              ))}
-            </div>
-            <div className="calendar-body">
-              {days.map((day, index) => {
-                const dayEvents = getEventsForDay(day);
-                const isToday = day &&
-                  day === new Date().getDate() &&
-                  month === new Date().getMonth() &&
-                  year === new Date().getFullYear();
+        // Habit tracker helpers
+        const currentHabitData = monthlyHabits[monthKey] || { habits: [] };
 
-                return (
-                  <div
-                    key={index}
-                    className={`calendar-day ${!day ? 'empty' : ''} ${isToday ? 'today' : ''}`}
-                    onClick={() => {
-                      if (day && !isSelectMode) {
-                        const newDate = new Date(year, month, day);
-                        setCurrentDate(newDate);
-                        setView('daily');
-                      }
+        const toggleHabitDay = (habitName, day) => {
+          const updatedHabits = currentHabitData.habits.map(h => {
+            if (h.name !== habitName) return h;
+            const newDays = { ...h.days };
+            newDays[day] = !newDays[day];
+            return { ...h, days: newDays };
+          });
+          setMonthlyHabits({
+            ...monthlyHabits,
+            [monthKey]: { habits: updatedHabits }
+          });
+        };
+
+        // Incomplete reasons data
+        const incompleteData = getMonthlyIncompleteReasons(year, month);
+
+        // Build weeks for habit grid display
+        const weeksInMonth = [];
+        let weekDays = [];
+        // Pad start of first week
+        for (let i = 0; i < startingDayOfWeek; i++) weekDays.push(null);
+        for (let d = 1; d <= daysInMonth; d++) {
+          weekDays.push(d);
+          if (weekDays.length === 7) {
+            weeksInMonth.push(weekDays);
+            weekDays = [];
+          }
+        }
+        if (weekDays.length > 0) {
+          while (weekDays.length < 7) weekDays.push(null);
+          weeksInMonth.push(weekDays);
+        }
+
+        return (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '320px 1fr',
+            gap: '16px',
+            minHeight: 0
+          }}>
+            {/* LEFT SIDEBAR */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+              overflowY: 'auto',
+              maxHeight: 'calc(100vh - 180px)'
+            }}>
+              {/* Habit Tracker Card */}
+              <div style={{
+                background: 'white',
+                borderRadius: '12px',
+                padding: '16px',
+                border: '2px solid #e0e7e0'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <h4 style={{ margin: 0, color: '#2d5a3d', fontSize: '14px', fontWeight: 600 }}>
+                    Habit Tracker
+                  </h4>
+                  <button
+                    onClick={() => setShowHabitModal(true)}
+                    style={{
+                      background: '#e8f5eb',
+                      border: '1px solid #4a7c59',
+                      color: '#2d5a3d',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '11px',
+                      fontWeight: 600
                     }}
                   >
-                    {day && (
-                      <>
-                        <div className="day-number">{day}</div>
-                        <div className="day-events">
-                          {dayEvents.slice(0, 3).map(event => {
-                            const category = categories.find(c => c.id === event.categoryId);
-                            const isSelected = selectedEventIds.includes(event.id);
-                            return (
-                              <div
-                                key={event.id}
-                                className={`event-item ${event.type}${isSelectMode ? ' selectable' : ''}${isSelected ? ' selected' : ''}`}
-                                style={{
-                                  borderLeftColor: category?.color,
-                                  cursor: 'pointer',
-                                  background: isSelected ? `${category?.color || '#4a7c59'}40` : undefined
-                                }}
-                                title={isSelectMode ? 'Click to select' : `${event.title} - ${event.type} (click to edit)`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (isSelectMode) {
-                                    setSelectedEventIds(prev =>
-                                      prev.includes(event.id)
-                                        ? prev.filter(id => id !== event.id)
-                                        : [...prev, event.id]
-                                    );
-                                  } else {
-                                    if (event.type === 'planned') {
-                                      setSelectedEventForCompletion(event);
-                                      setShowCompletionModal(true);
-                                    } else {
-                                      setPrefilledEventData({
-                                        title: event.title,
-                                        startDate: formatDate(new Date(event.startDateTime)),
-                                        startTime: formatTime(new Date(event.startDateTime)),
-                                        endDate: formatDate(new Date(event.endDateTime)),
-                                        endTime: formatTime(new Date(event.endDateTime)),
-                                        categoryId: event.categoryId,
-                                        type: event.type,
-                                        description: event.description || '',
-                                        location: event.location || '',
-                                        projectId: event.projectId || ''
-                                      });
-                                      window.__editingEventId = event.id;
-                                      setShowEventModal(true);
-                                    }
-                                  }
-                                }}
-                              >
-                                {event.title}
-                              </div>
-                            );
-                          })}
-                          {dayEvents.length > 3 && (
-                            <div className="more-events">+{dayEvents.length - 3} more</div>
+                    + Manage
+                  </button>
+                </div>
+
+                {currentHabitData.habits.length === 0 && (
+                  <p style={{ color: '#6b9b7a', fontSize: '12px', textAlign: 'center', padding: '12px 0' }}>
+                    No habits tracked this month. Click "+ Manage" to add some!
+                  </p>
+                )}
+
+                {currentHabitData.habits.map(habit => {
+                  const streak = getHabitStreak(habit.name);
+                  const completedCount = Object.values(habit.days || {}).filter(v => v).length;
+                  return (
+                    <div key={habit.name} style={{ marginBottom: '14px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#2d5a3d' }}>{habit.name}</span>
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                          {streak > 0 && (
+                            <span style={{
+                              background: '#fff3e0',
+                              color: '#e65100',
+                              padding: '2px 8px',
+                              borderRadius: '10px',
+                              fontSize: '10px',
+                              fontWeight: 600
+                            }}>{streak} mo streak</span>
                           )}
+                          <span style={{ fontSize: '11px', color: '#6b9b7a' }}>{completedCount}d</span>
                         </div>
-                      </>
-                    )}
-                  </div>
-                );
-              })}
+                      </div>
+                      {/* 7-column day grid */}
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(7, 1fr)',
+                        gap: '2px'
+                      }}>
+                        {['S','M','T','W','T','F','S'].map((d, i) => (
+                          <div key={i} style={{ textAlign: 'center', fontSize: '9px', color: '#6b9b7a', fontWeight: 600, marginBottom: '2px' }}>{d}</div>
+                        ))}
+                        {weeksInMonth.flat().map((day, idx) => {
+                          if (day === null) return <div key={idx} />;
+                          const done = habit.days && habit.days[day];
+                          const isPast = new Date(year, month, day) < new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                          const isFuture = !isPast && !(day === now.getDate() && isCurrentMonth);
+                          const isToday = day === now.getDate() && isCurrentMonth;
+
+                          return (
+                            <div
+                              key={idx}
+                              onClick={() => {
+                                if (!isFuture) toggleHabitDay(habit.name, day);
+                              }}
+                              style={{
+                                width: '100%',
+                                aspectRatio: '1',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                borderRadius: '4px',
+                                fontSize: '10px',
+                                fontWeight: 600,
+                                cursor: isFuture ? 'default' : 'pointer',
+                                background: done ? '#e8f5eb' : (isPast && !done ? '#fee2e2' : (isToday ? '#f5f7f5' : 'transparent')),
+                                color: done ? '#16a34a' : (isPast && !done ? '#dc2626' : '#9ca3af'),
+                                border: isToday ? '1px solid #4a7c59' : '1px solid transparent',
+                                transition: 'all 0.15s'
+                              }}
+                              title={`Day ${day}`}
+                            >
+                              {done ? '\u2713' : (isPast && !done ? '\u2717' : day)}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Incomplete Reasons Card */}
+              <div style={{
+                background: 'white',
+                borderRadius: '12px',
+                padding: '16px',
+                border: '2px solid #e0e7e0'
+              }}>
+                <h4 style={{ margin: '0 0 12px 0', color: '#2d5a3d', fontSize: '14px', fontWeight: 600 }}>
+                  Incomplete Reasons
+                </h4>
+
+                {incompleteData.totalIncomplete === 0 && (
+                  <p style={{ color: '#6b9b7a', fontSize: '12px', textAlign: 'center', padding: '12px 0' }}>
+                    No incomplete events this month.
+                  </p>
+                )}
+
+                {incompleteData.totalIncomplete > 0 && (
+                  <>
+                    <div style={{
+                      background: '#fff3e0',
+                      border: '1px solid #ffe0b2',
+                      borderRadius: '8px',
+                      padding: '10px 12px',
+                      marginBottom: '12px'
+                    }}>
+                      <div style={{ fontSize: '11px', color: '#e65100', fontWeight: 600, marginBottom: '2px' }}>
+                        #1 Most Frequent
+                      </div>
+                      <div style={{ fontSize: '14px', color: '#bf360c', fontWeight: 700 }}>
+                        {incompleteData.reasons[0].reason} ({incompleteData.reasons[0].count}x)
+                      </div>
+                    </div>
+
+                    {incompleteData.reasons.slice(1).map(({ reason, count }) => (
+                      <div key={reason} style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        padding: '6px 0',
+                        borderBottom: '1px solid #f0f0f0',
+                        fontSize: '12px'
+                      }}>
+                        <span style={{ color: '#2d5a3d' }}>{reason}</span>
+                        <span style={{ color: '#6b9b7a', fontWeight: 600 }}>{count}x</span>
+                      </div>
+                    ))}
+
+                    <div style={{
+                      marginTop: '12px',
+                      padding: '8px 12px',
+                      background: '#f5f7f5',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      color: '#6b9b7a',
+                      textAlign: 'center'
+                    }}>
+                      Total incomplete: {incompleteData.totalIncomplete} events
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* RIGHT: Calendar Grid */}
+            <div className="calendar-grid">
+              {/* Select Mode Toggle */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+                <button
+                  className={`select-mode-toggle ${isSelectMode ? 'active' : ''}`}
+                  onClick={() => {
+                    setIsSelectMode(!isSelectMode);
+                    if (isSelectMode) setSelectedEventIds([]);
+                  }}
+                >
+                  {isSelectMode ? '\u2715 Exit Select' : '\u2611 Select Mode'}
+                </button>
+              </div>
+              <div className="calendar-header">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                  <div key={day} className="calendar-day-header">{day}</div>
+                ))}
+              </div>
+              <div className="calendar-body">
+                {days.map((day, index) => {
+                  const dayEvents = getEventsForDay(day);
+                  const isToday = day &&
+                    day === new Date().getDate() &&
+                    month === new Date().getMonth() &&
+                    year === new Date().getFullYear();
+
+                  return (
+                    <div
+                      key={index}
+                      className={`calendar-day ${!day ? 'empty' : ''} ${isToday ? 'today' : ''}`}
+                      onClick={() => {
+                        if (day && !isSelectMode) {
+                          const newDate = new Date(year, month, day);
+                          setCurrentDate(newDate);
+                          setView('daily');
+                        }
+                      }}
+                    >
+                      {day && (
+                        <>
+                          <div className="day-number">{day}</div>
+                          <div className="day-events">
+                            {dayEvents.slice(0, 3).map(event => {
+                              const category = categories.find(c => c.id === event.categoryId);
+                              const isSelected = selectedEventIds.includes(event.id);
+                              return (
+                                <div
+                                  key={event.id}
+                                  className={`event-item ${event.type}${isSelectMode ? ' selectable' : ''}${isSelected ? ' selected' : ''}`}
+                                  style={{
+                                    borderLeftColor: category?.color,
+                                    cursor: 'pointer',
+                                    background: isSelected ? `${category?.color || '#4a7c59'}40` : undefined
+                                  }}
+                                  title={isSelectMode ? 'Click to select' : `${event.title} - ${event.type} (click to edit)`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (isSelectMode) {
+                                      setSelectedEventIds(prev =>
+                                        prev.includes(event.id)
+                                          ? prev.filter(id => id !== event.id)
+                                          : [...prev, event.id]
+                                      );
+                                    } else {
+                                      if (event.type === 'planned') {
+                                        setSelectedEventForCompletion(event);
+                                        setShowCompletionModal(true);
+                                      } else {
+                                        setPrefilledEventData({
+                                          title: event.title,
+                                          startDate: formatDate(new Date(event.startDateTime)),
+                                          startTime: formatTime(new Date(event.startDateTime)),
+                                          endDate: formatDate(new Date(event.endDateTime)),
+                                          endTime: formatTime(new Date(event.endDateTime)),
+                                          categoryId: event.categoryId,
+                                          type: event.type,
+                                          description: event.description || '',
+                                          location: event.location || '',
+                                          projectId: event.projectId || ''
+                                        });
+                                        window.__editingEventId = event.id;
+                                        setShowEventModal(true);
+                                      }
+                                    }
+                                  }}
+                                >
+                                  {event.title}
+                                </div>
+                              );
+                            })}
+                            {dayEvents.length > 3 && (
+                              <div className="more-events">+{dayEvents.length - 3} more</div>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         );
@@ -7347,8 +7774,19 @@
           }}>
             {/* Left: 12-month calendar grid */}
             <div>
-              <h3 style={{ color: '#2d5a3d', marginBottom: '16px' }}>
+              <h3 style={{ color: '#2d5a3d', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                 {year} Calendar
+                {year === new Date().getFullYear() && (
+                  <span style={{
+                    background: '#e8f5eb',
+                    color: '#2d5a3d',
+                    padding: '4px 12px',
+                    borderRadius: '20px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    border: '1px solid #4a7c59'
+                  }}>Week {getWeekNumber(new Date())}</span>
+                )}
               </h3>
               <div style={{
                 display: 'grid',
@@ -7849,7 +8287,7 @@
               {view === 'timeline' && `Project Timeline ${currentDate.getFullYear()}`}
               {view === 'yearly' && currentDate.getFullYear()}
               {view === 'monthly' && currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-              {view === 'weekly' && `Week of ${currentDate.toLocaleDateString()}`}
+              {view === 'weekly' && `Week ${getWeekNumber(currentDate)} - ${currentDate.toLocaleDateString()}`}
               {view === 'daily' && currentDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
             </h2>
             {view !== 'timeline' && (
@@ -7904,6 +8342,7 @@
           {showGoogleSetupModal && <GoogleSetupModal />}
           {showJournalModal && <JournalModal />}
           {showWeeklyReflectionModal && <WeeklyReflectionModal />}
+          {showHabitModal && <HabitModal />}
 
           {/* Floating Action Bar for batch operations */}
           {isSelectMode && selectedEventIds.length > 0 && (
