@@ -3332,9 +3332,10 @@
       };
 
       const CompletionModal = () => {
-        const [completionType, setCompletionType] = useState('on_time'); // on_time, late, incomplete
-        const [lateTime, setLateTime] = useState('');
-        const [lateReason, setLateReason] = useState('');
+        const [completionType, setCompletionType] = useState('on_time'); // on_time, not_fully_completed, incomplete
+        const [notFullyCompletedStartTime, setNotFullyCompletedStartTime] = useState('');
+        const [notFullyCompletedEndTime, setNotFullyCompletedEndTime] = useState('');
+        const [notFullyCompletedReason, setNotFullyCompletedReason] = useState('');
         const [incompleteReason, setIncompleteReason] = useState('');
         const [actualEventTitle, setActualEventTitle] = useState('');
         const [actualStartTime, setActualStartTime] = useState('');
@@ -3349,6 +3350,7 @@
           const actualEvent = {
             id: Date.now().toString(),
             categoryId: event.categoryId,
+            projectId: event.projectId,
             type: 'actual',
             description: event.description,
             location: event.location,
@@ -3364,24 +3366,24 @@
             actualEvent.endDate = formatDate(new Date(event.endDateTime));
             actualEvent.endTime = formatTime(new Date(event.endDateTime));
             actualEvent.completionStatus = 'completed_on_time';
-          } else if (completionType === 'late') {
-            if (!lateTime || !lateReason) {
-              alert('Please enter late completion time and reason');
+          } else if (completionType === 'not_fully_completed') {
+            if (!notFullyCompletedStartTime || !notFullyCompletedEndTime || !notFullyCompletedReason) {
+              alert('Please enter actual start time, end time, and reason');
               return;
             }
-            const lateEndDateTime = new Date(event.startDateTime);
-            const [hours, minutes] = lateTime.split(':');
-            lateEndDateTime.setHours(parseInt(hours), parseInt(minutes));
-            
+            const startDate = formatDate(new Date(event.startDateTime));
+            const nfcStart = new Date(`${startDate}T${notFullyCompletedStartTime}`);
+            const nfcEnd = new Date(`${startDate}T${notFullyCompletedEndTime}`);
+
             actualEvent.title = event.title;
-            actualEvent.startDateTime = event.startDateTime;
-            actualEvent.endDateTime = lateEndDateTime;
-            actualEvent.startDate = formatDate(new Date(event.startDateTime));
-            actualEvent.startTime = formatTime(new Date(event.startDateTime));
-            actualEvent.endDate = formatDate(lateEndDateTime);
-            actualEvent.endTime = formatTime(lateEndDateTime);
-            actualEvent.completionStatus = 'completed_late';
-            actualEvent.lateReason = lateReason;
+            actualEvent.startDateTime = nfcStart;
+            actualEvent.endDateTime = nfcEnd;
+            actualEvent.startDate = startDate;
+            actualEvent.startTime = notFullyCompletedStartTime;
+            actualEvent.endDate = startDate;
+            actualEvent.endTime = notFullyCompletedEndTime;
+            actualEvent.completionStatus = 'not_fully_completed';
+            actualEvent.notFullyCompletedReason = notFullyCompletedReason;
           } else {
             if (!incompleteReason || !actualEventTitle || !actualStartTime || !actualEndTime) {
               alert('Please fill in all required fields');
