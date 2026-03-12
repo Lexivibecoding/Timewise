@@ -1508,14 +1508,6 @@
 
     const { useState, useEffect, useRef } = React;
 
-    // Module-level drag state (survives component remounts)
-    const _drag = {
-      ref: null,          // { event, startX, startY, dayIndex, duration, elementWidth, elementHeight, offsetY }
-      ghost: null,         // Ghost DOM element
-      activated: false,    // Whether drag threshold was met
-      lastEndTime: 0,      // Timestamp of last drag end to suppress click
-      overSlot: null       // Current drop target { dayIndex, hour, minute }
-    };
 
     // Simple icon components
     const ChevronLeft = () => <span>←</span>;
@@ -1675,8 +1667,6 @@
       // Weekly view interactive state
       const [isSelectMode, setIsSelectMode] = useState(false);
       const [selectedEventIds, setSelectedEventIds] = useState([]);
-      const [draggedEvent, setDraggedEvent] = useState(null);
-      const [dragOverSlot, setDragOverSlot] = useState(null);
 
       // --- Firebase Auth listener ---
       useEffect(() => {
@@ -6302,160 +6292,6 @@
           };
         };
 
-        // Drag-and-drop rescheduling constants
-        const DRAG_THRESHOLD = 5;
-        const SNAP_MINUTES = 15;
-        const PIXELS_PER_HOUR = 60;
-        const TIMELINE_START_HOUR = 6;
-        const TIMELINE_END_HOUR = 22;
-        const GHOST_OPACITY = 0.7;
-
-        // Store weekDates and setters in _drag so document listeners can access current values
-        const _weekDates = weekDates;
-
-        const handleDragStart = (e, event, dayIndex) => {
-          if (isSelectMode) return;
-          if (e.button !== 0) return; // Only left click
-
-          const eventEl = e.currentTarget;
-          const rect = eventEl.getBoundingClientRect();
-          const start = new Date(event.startDateTime);
-          const end = new Date(event.endDateTime);
-          const duration = end - start; // in ms
-          const evtCategory = categories.find(c => c.id === event.categoryId);
-          const ghostColor = evtCategory?.color || '#4a7c59';
-
-          _drag.ref = {
-            event,
-            startX: e.clientX,
-            startY: e.clientY,
-            dayIndex,
-            duration,
-            elementWidth: rect.width,
-            elementHeight: rect.height,
-            offsetY: e.clientY - rect.top,
-            ghostColor
-          };
-          _drag.activated = false;
-
-          const onMove = (ev) => {
-            if (!_drag.ref) return;
-
-            const dx = ev.clientX - _drag.ref.startX;
-            const dy = ev.clientY - _drag.ref.startY;
-
-            // Check drag threshold
-            if (!_drag.activated) {
-              if (Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return;
-              _drag.activated = true;
-              setDraggedEvent(_drag.ref.event);
-              document.body.style.cursor = 'grabbing';
-              document.body.style.userSelect = 'none';
-
-              // Create ghost element
-              const ghost = document.createElement('div');
-              ghost.style.cssText = `
-                position: fixed;
-                width: ${_drag.ref.elementWidth}px;
-                height: ${_drag.ref.elementHeight}px;
-                opacity: ${GHOST_OPACITY};
-                pointer-events: none;
-                z-index: 10000;
-                border-radius: 6px;
-                background: ${_drag.ref.ghostColor};
-                border: 2px solid ${_drag.ref.ghostColor};
-                padding: 4px 6px;
-                box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-                font-size: 11px;
-                font-weight: 600;
-                color: white;
-                overflow: hidden;
-              `;
-              ghost.textContent = _drag.ref.event.title;
-              document.body.appendChild(ghost);
-              _drag.ghost = ghost;
-            }
-
-            // Position ghost at cursor
-            if (_drag.ghost) {
-              _drag.ghost.style.left = `${ev.clientX - _drag.ref.elementWidth / 2}px`;
-              _drag.ghost.style.top = `${ev.clientY - _drag.ref.offsetY}px`;
-            }
-
-            // Determine target day and time from cursor position
-            const gridEl = document.getElementById('weekly-grid');
-            if (!gridEl) return;
-
-            const gridRect = gridEl.getBoundingClientRect();
-            const timeLabelsWidth = 60;
-            const columnsWidth = gridRect.width - timeLabelsWidth;
-            const relativeX = ev.clientX - gridRect.left - timeLabelsWidth;
-            const columnWidth = columnsWidth / 7;
-            const targetDayIndex = Math.max(0, Math.min(6, Math.floor(relativeX / columnWidth)));
-
-            const relativeY = ev.clientY - gridRect.top - _drag.ref.offsetY;
-            const totalMinutes = (relativeY / PIXELS_PER_HOUR) * 60 + TIMELINE_START_HOUR * 60;
-            const snappedMinutes = Math.round(totalMinutes / SNAP_MINUTES) * SNAP_MINUTES;
-            const clampedMinutes = Math.max(TIMELINE_START_HOUR * 60, Math.min(TIMELINE_END_HOUR * 60, snappedMinutes));
-            const targetHour = Math.floor(clampedMinutes / 60);
-            const targetMinute = clampedMinutes % 60;
-
-            _drag.overSlot = { dayIndex: targetDayIndex, hour: targetHour, minute: targetMinute };
-            setDragOverSlot(_drag.overSlot);
-          };
-
-          const onUp = (ev) => {
-            document.removeEventListener('mousemove', onMove);
-            document.removeEventListener('mouseup', onUp);
-
-            // Clean up ghost
-            if (_drag.ghost) {
-              document.body.removeChild(_drag.ghost);
-              _drag.ghost = null;
-            }
-            document.body.style.cursor = '';
-            document.body.style.userSelect = '';
-
-            const wasDragActivated = _drag.activated;
-            const dragData = _drag.ref;
-            const currentDragOverSlot = _drag.overSlot;
-            _drag.ref = null;
-            _drag.activated = false;
-            _drag.overSlot = null;
-            if (wasDragActivated) _drag.lastEndTime = Date.now();
-            setDraggedEvent(null);
-            setDragOverSlot(null);
-
-            if (!wasDragActivated || !dragData) return;
-            if (!currentDragOverSlot) return;
-
-            // Calculate new times preserving duration
-            const targetDate = new Date(_weekDates[currentDragOverSlot.dayIndex]);
-            const newStart = new Date(targetDate);
-            newStart.setHours(currentDragOverSlot.hour, currentDragOverSlot.minute, 0, 0);
-            const newEnd = new Date(newStart.getTime() + dragData.duration);
-
-            // Clamp end time to timeline bounds
-            const maxEnd = new Date(targetDate);
-            maxEnd.setHours(TIMELINE_END_HOUR, 0, 0, 0);
-            if (newEnd > maxEnd) {
-              newEnd.setTime(maxEnd.getTime());
-            }
-
-            const updatedEvent = {
-              ...dragData.event,
-              startDateTime: newStart,
-              endDateTime: newEnd
-            };
-
-            setEvents(prev => prev.map(ev => ev.id === updatedEvent.id ? updatedEvent : ev));
-            saveEventToFirestore(updatedEvent);
-          };
-
-          document.addEventListener('mousemove', onMove);
-          document.addEventListener('mouseup', onUp);
-        };
-
         // Navigate week
         const goToPreviousWeek = () => {
           const newDate = new Date(currentDate);
@@ -6685,9 +6521,9 @@
                           {hours.map(hour => (
                             <div
                               key={hour}
-                              style={{ height: '60px', borderBottom: '1px solid #f0f0f0', cursor: isSelectMode ? 'default' : draggedEvent ? 'grabbing' : 'pointer' }}
+                              style={{ height: '60px', borderBottom: '1px solid #f0f0f0', cursor: isSelectMode ? 'default' : 'pointer' }}
                               onClick={() => {
-                                if (!isSelectMode && !draggedEvent) {
+                                if (!isSelectMode) {
                                   const h = hour.toString().padStart(2, '0');
                                   setPrefilledEventData({
                                     title: '',
@@ -6707,39 +6543,10 @@
                                   setShowEventModal(true);
                                 }
                               }}
-                              onMouseEnter={e => { if (!isSelectMode && !draggedEvent) e.currentTarget.style.background = '#f0f9f4'; }}
-                              onMouseLeave={e => { if (!draggedEvent) e.currentTarget.style.background = 'transparent'; }}
+                              onMouseEnter={e => { if (!isSelectMode) e.currentTarget.style.background = '#f0f9f4'; }}
+                              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
                             />
                           ))}
-
-                          {/* Drop target highlight */}
-                          {dragOverSlot && dragOverSlot.dayIndex === dayIndex && (() => {
-                            const highlightTop = (dragOverSlot.hour - TIMELINE_START_HOUR) * PIXELS_PER_HOUR + dragOverSlot.minute;
-                            const displayHour = dragOverSlot.hour > 12 ? dragOverSlot.hour - 12 : dragOverSlot.hour === 0 ? 12 : dragOverSlot.hour;
-                            const ampm = dragOverSlot.hour >= 12 ? 'PM' : 'AM';
-                            const displayMinute = dragOverSlot.minute.toString().padStart(2, '0');
-                            return (
-                              <div style={{
-                                position: 'absolute',
-                                top: `${highlightTop}px`,
-                                left: '2px',
-                                right: '2px',
-                                height: '30px',
-                                background: 'rgba(76, 175, 80, 0.2)',
-                                border: '2px dashed #4caf50',
-                                borderRadius: '6px',
-                                zIndex: 5,
-                                pointerEvents: 'none',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                              }}>
-                                <span style={{ fontSize: '11px', fontWeight: '700', color: '#2e7d32' }}>
-                                  {displayHour}:{displayMinute} {ampm}
-                                </span>
-                              </div>
-                            );
-                          })()}
 
                           {/* Events */}
                           {dayEvents.map(event => {
@@ -6747,7 +6554,6 @@
                             const baseColor = category?.color || '#4a7c59';
                             const position = getEventPosition(event);
                             const isSelected = selectedEventIds.includes(event.id);
-                            const isDragging = draggedEvent && draggedEvent.id === event.id;
 
                             return (
                               <div
@@ -6762,16 +6568,13 @@
                                   border: `2px ${event.type === 'planned' ? 'dashed' : 'solid'} ${baseColor}`,
                                   borderRadius: '6px',
                                   padding: '4px 6px',
-                                  cursor: isSelectMode ? 'pointer' : 'grab',
+                                  cursor: 'pointer',
                                   overflow: 'hidden',
-                                  transition: isDragging ? 'none' : 'all 0.2s',
-                                  outline: isSelected ? '3px solid #2196f3' : 'none',
-                                  opacity: isDragging ? 0.3 : 1
+                                  transition: 'all 0.2s',
+                                  outline: isSelected ? '3px solid #2196f3' : 'none'
                                 }}
-                                onMouseDown={(e) => handleDragStart(e, event, dayIndex)}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (Date.now() - _drag.lastEndTime < 100) return; // Drag just ended, skip click
                                   if (isSelectMode) {
                                     setSelectedEventIds(prev =>
                                       prev.includes(event.id)
@@ -6799,18 +6602,14 @@
                                   }
                                 }}
                                 onMouseEnter={e => {
-                                  if (!draggedEvent) {
-                                    e.currentTarget.style.transform = 'scale(1.02)';
-                                    e.currentTarget.style.zIndex = '10';
-                                    e.currentTarget.style.boxShadow = `0 4px 12px ${baseColor}40`;
-                                  }
+                                  e.currentTarget.style.transform = 'scale(1.02)';
+                                  e.currentTarget.style.zIndex = '10';
+                                  e.currentTarget.style.boxShadow = `0 4px 12px ${baseColor}40`;
                                 }}
                                 onMouseLeave={e => {
-                                  if (!draggedEvent) {
-                                    e.currentTarget.style.transform = 'scale(1)';
-                                    e.currentTarget.style.zIndex = '1';
-                                    e.currentTarget.style.boxShadow = 'none';
-                                  }
+                                  e.currentTarget.style.transform = 'scale(1)';
+                                  e.currentTarget.style.zIndex = '1';
+                                  e.currentTarget.style.boxShadow = 'none';
                                 }}
                               >
                                 <div style={{
