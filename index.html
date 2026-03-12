@@ -3497,13 +3497,13 @@
                     </div>
                   </button>
                   <button 
-                    className={`event-type-toggle ${completionType === 'late' ? 'active' : ''}`}
-                    onClick={() => setCompletionType('late')}
+                    className={`event-type-toggle ${completionType === 'not_fully_completed' ? 'active' : ''}`}
+                    onClick={() => setCompletionType('not_fully_completed')}
                     style={{ width: '100%', padding: '12px', textAlign: 'left' }}
                   >
-                    ⚠️ <strong>Completed Late</strong>
+                    ⚠️ <strong>Not Fully Completed</strong>
                     <div style={{ fontSize: '12px', marginTop: '4px', opacity: 0.8 }}>
-                      Took longer than expected
+                      Didn't finish as planned
                     </div>
                   </button>
                   <button 
@@ -3519,23 +3519,31 @@
                 </div>
               </div>
 
-              {completionType === 'late' && (
+              {completionType === 'not_fully_completed' && (
                 <>
                   <div className="form-group">
-                    <label>Actual End Time *</label>
-                    <input 
-                      type="time" 
-                      value={lateTime}
-                      onChange={e => setLateTime(e.target.value)}
+                    <label>Actual Start Time *</label>
+                    <input
+                      type="time"
+                      value={notFullyCompletedStartTime}
+                      onChange={e => setNotFullyCompletedStartTime(e.target.value)}
                     />
                   </div>
                   <div className="form-group">
-                    <label>Reason for Delay *</label>
-                    <textarea 
-                      value={lateReason}
-                      onChange={e => setLateReason(e.target.value)}
+                    <label>Actual End Time *</label>
+                    <input
+                      type="time"
+                      value={notFullyCompletedEndTime}
+                      onChange={e => setNotFullyCompletedEndTime(e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Reason *</label>
+                    <textarea
+                      value={notFullyCompletedReason}
+                      onChange={e => setNotFullyCompletedReason(e.target.value)}
                       rows="3"
-                      placeholder="Why did this take longer than planned?"
+                      placeholder="Why wasn't this fully completed?"
                     />
                   </div>
                 </>
