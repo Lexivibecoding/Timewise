@@ -7694,19 +7694,29 @@
           const startingDayOfWeek = firstDay.getDay();
           const daysInMonth = lastDay.getDate();
 
-          const days = [];
+          // Build weeks array: each week = [weekNumber, day1, day2, ..., day7]
+          const weeks = [];
+          let currentWeek = [];
           for (let i = 0; i < startingDayOfWeek; i++) {
-            days.push(null);
+            currentWeek.push(null);
           }
           for (let i = 1; i <= daysInMonth; i++) {
-            days.push(i);
+            currentWeek.push(i);
+            if (currentWeek.length === 7) {
+              weeks.push(currentWeek);
+              currentWeek = [];
+            }
+          }
+          if (currentWeek.length > 0) {
+            while (currentWeek.length < 7) currentWeek.push(null);
+            weeks.push(currentWeek);
           }
 
           const isCurrentMonth = monthIndex === new Date().getMonth() && year === new Date().getFullYear();
 
           return (
-            <div 
-              key={monthIndex} 
+            <div
+              key={monthIndex}
               style={{
                 background: 'white',
                 borderRadius: '8px',
@@ -7724,51 +7734,55 @@
               onMouseLeave={e => e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)'}
               title={`View ${new Date(year, monthIndex).toLocaleString('default', { month: 'long' })} calendar`}
             >
-              <div style={{ 
-                fontSize: '14px', 
-                fontWeight: 600, 
+              <div style={{
+                fontSize: '14px',
+                fontWeight: 600,
                 color: '#2d5a3d',
                 marginBottom: '8px',
                 textAlign: 'center'
               }}>
                 {new Date(year, monthIndex).toLocaleString('default', { month: 'long' })}
               </div>
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(7, 1fr)',
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '20px repeat(7, 1fr)',
                 gap: '2px'
               }}>
+                {/* Header row with week number label + day names */}
+                <div style={{ fontSize: '9px', color: '#9e9e9e', textAlign: 'center', padding: '2px' }}>W</div>
                 {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
-                  <div key={i} style={{ 
-                    fontSize: '10px', 
-                    color: '#6b9b7a', 
+                  <div key={i} style={{
+                    fontSize: '10px',
+                    color: '#6b9b7a',
                     textAlign: 'center',
                     padding: '2px'
                   }}>
                     {d}
                   </div>
                 ))}
-                {days.map((day, index) => {
-                  const isToday = day && 
-                    day === new Date().getDate() && 
-                    isCurrentMonth;
-
-                  return (
-                    <div
-                      key={index}
-                      style={{
-                        fontSize: '11px',
-                        textAlign: 'center',
-                        padding: '4px 2px',
-                        background: isToday ? '#4a7c59' : 'transparent',
-                        color: isToday ? 'white' : (day ? '#2d5a3d' : 'transparent'),
-                        borderRadius: '4px',
-                        fontWeight: isToday ? '600' : 'normal'
-                      }}
-                    >
-                      {day || ''}
-                    </div>
-                  );
+                {/* Week rows */}
+                {weeks.map((week, weekIdx) => {
+                  // Find the first actual day in this week to calculate week number
+                  const firstDayInWeek = week.find(d => d !== null);
+                  const weekNum = firstDayInWeek ? getWeekNumber(new Date(year, monthIndex, firstDayInWeek)) : '';
+                  return React.createElement(React.Fragment, { key: weekIdx }, [
+                    React.createElement('div', { key: 'wn', style: { fontSize: '9px', color: '#9e9e9e', textAlign: 'center', padding: '2px 0', display: 'flex', alignItems: 'center', justifyContent: 'center' } }, weekNum),
+                    ...week.map((day, dayIdx) => {
+                      const isToday = day && day === new Date().getDate() && isCurrentMonth;
+                      return React.createElement('div', {
+                        key: dayIdx,
+                        style: {
+                          fontSize: '11px',
+                          textAlign: 'center',
+                          padding: '4px 2px',
+                          background: isToday ? '#4a7c59' : 'transparent',
+                          color: isToday ? 'white' : (day ? '#2d5a3d' : 'transparent'),
+                          borderRadius: '4px',
+                          fontWeight: isToday ? '600' : 'normal'
+                        }
+                      }, day || '');
+                    })
+                  ]);
                 })}
               </div>
             </div>
@@ -7840,9 +7854,9 @@
                   boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
                 }}>
                   <div style={{ marginBottom: '12px' }}>
-                    <div style={{ 
-                      fontSize: '16px', 
-                      fontWeight: 600, 
+                    <div style={{
+                      fontSize: '16px',
+                      fontWeight: 600,
                       color: '#2d5a3d',
                       marginBottom: '4px'
                     }}>
@@ -7854,8 +7868,8 @@
                   </div>
 
                   <div style={{ marginBottom: '8px' }}>
-                    <div style={{ 
-                      display: 'flex', 
+                    <div style={{
+                      display: 'flex',
                       justifyContent: 'space-between',
                       fontSize: '13px',
                       marginBottom: '4px'
@@ -7875,14 +7889,14 @@
                       <div style={{
                         width: `${Math.min(project.percentage, 100)}%`,
                         height: '100%',
-                        background: project.percentage >= 100 ? '#4caf50' : 
+                        background: project.percentage >= 100 ? '#4caf50' :
                                    project.percentage >= 75 ? '#8bc34a' :
                                    project.percentage >= 50 ? '#ffc107' : '#ff9800',
                         transition: 'width 0.3s ease'
                       }}></div>
                     </div>
-                    <div style={{ 
-                      fontSize: '12px', 
+                    <div style={{
+                      fontSize: '12px',
                       color: '#6b9b7a',
                       marginTop: '4px',
                       textAlign: 'right'
@@ -7910,7 +7924,7 @@
                       color: '#6b9b7a',
                       marginTop: '8px'
                     }}>
-                      {project.plannedHours - project.actualHours > 0 ? 
+                      {project.plannedHours - project.actualHours > 0 ?
                         `${(project.plannedHours - project.actualHours).toFixed(1)}h remaining` :
                         `${(project.actualHours - project.plannedHours).toFixed(1)}h over target`
                       }
@@ -7918,6 +7932,74 @@
                   )}
                 </div>
               ))}
+
+              {/* Yearly Habit Summary */}
+              <h3 style={{ color: '#2d5a3d', marginTop: '24px', marginBottom: '16px' }}>
+                Yearly Habit Summary
+              </h3>
+              {(() => {
+                // Collect all unique habits across all months in this year
+                const yearHabits = {};
+                for (let m = 0; m < 12; m++) {
+                  const key = `${year}-${String(m + 1).padStart(2, '0')}`;
+                  const monthData = monthlyHabits[key];
+                  if (!monthData || !monthData.habits) continue;
+                  const daysInMonth = new Date(year, m + 1, 0).getDate();
+                  const now = new Date();
+                  const isCurrentOrPast = (year < now.getFullYear()) || (year === now.getFullYear() && m <= now.getMonth());
+                  if (!isCurrentOrPast) continue;
+                  const isCurrentMonth = year === now.getFullYear() && m === now.getMonth();
+                  const countableDays = isCurrentMonth ? now.getDate() : daysInMonth;
+
+                  monthData.habits.forEach(habit => {
+                    if (!yearHabits[habit.name]) {
+                      yearHabits[habit.name] = { firstMonth: key, checked: 0, missed: 0, totalDays: 0 };
+                    }
+                    const checked = Object.entries(habit.days || {}).filter(([d, v]) => v === true && parseInt(d) <= countableDays).length;
+                    yearHabits[habit.name].checked += checked;
+                    yearHabits[habit.name].missed += (countableDays - checked);
+                    yearHabits[habit.name].totalDays += countableDays;
+                  });
+                }
+
+                const habitEntries = Object.entries(yearHabits);
+                if (habitEntries.length === 0) {
+                  return (
+                    <div style={{ background: '#f5f7f5', padding: '20px', borderRadius: '8px', textAlign: 'center', color: '#6b9b7a' }}>
+                      <p>No habits tracked this year.</p>
+                      <p style={{ fontSize: '13px', marginTop: '8px' }}>Add habits in the monthly view to see your yearly summary here!</p>
+                    </div>
+                  );
+                }
+
+                return habitEntries.map(([name, data]) => {
+                  const pct = data.totalDays > 0 ? Math.round((data.checked / data.totalDays) * 100) : 0;
+                  const [y, m] = data.firstMonth.split('-');
+                  const createdLabel = new Date(parseInt(y), parseInt(m) - 1).toLocaleString('default', { month: 'short', year: 'numeric' });
+                  return (
+                    <div key={name} style={{ background: 'white', borderRadius: '8px', padding: '14px', marginBottom: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <div style={{ fontSize: '15px', fontWeight: 600, color: '#2d5a3d' }}>{name}</div>
+                        <div style={{ fontSize: '11px', color: '#9e9e9e' }}>Since {createdLabel}</div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '16px', marginBottom: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span style={{ fontSize: '13px', color: '#4caf50', fontWeight: 600 }}>{data.checked}</span>
+                          <span style={{ fontSize: '12px', color: '#6b9b7a' }}>days checked</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span style={{ fontSize: '13px', color: '#ff5722', fontWeight: 600 }}>{data.missed}</span>
+                          <span style={{ fontSize: '12px', color: '#6b9b7a' }}>days missed</span>
+                        </div>
+                      </div>
+                      <div style={{ width: '100%', height: '6px', background: '#e0e7e0', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div style={{ width: `${pct}%`, height: '100%', background: pct >= 75 ? '#4caf50' : pct >= 50 ? '#ffc107' : '#ff9800', transition: 'width 0.3s ease' }}></div>
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#6b9b7a', marginTop: '4px', textAlign: 'right' }}>{pct}% completion rate</div>
+                    </div>
+                  );
+                });
+              })()}
             </div>
           </div>
 
