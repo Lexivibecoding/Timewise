@@ -6919,13 +6919,14 @@
 
         return (
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: '320px 1fr',
+            display: 'flex',
             gap: '16px',
             minHeight: 0
           }}>
             {/* LEFT SIDEBAR */}
             <div style={{
+              width: '320px',
+              minWidth: '320px',
               display: 'flex',
               flexDirection: 'column',
               gap: '16px',
@@ -7100,7 +7101,7 @@
             </div>
 
             {/* RIGHT: Calendar Grid */}
-            <div className="calendar-grid">
+            <div className="calendar-grid" style={{ flex: 1, minWidth: 0 }}>
               {/* Select Mode Toggle */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
                 <button
