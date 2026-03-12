@@ -6252,6 +6252,23 @@
       };
 
       const WeeklyView = () => {
+        const weeklyScrollRef = useRef(null);
+        const [pixelsPerHour, setPixelsPerHour] = useState(60);
+
+        useEffect(() => {
+          const measure = () => {
+            const el = weeklyScrollRef.current;
+            if (el) {
+              const available = el.clientHeight;
+              const calculated = Math.floor(available / 17);
+              setPixelsPerHour(Math.max(30, Math.min(60, calculated)));
+            }
+          };
+          measure();
+          window.addEventListener('resize', measure);
+          return () => window.removeEventListener('resize', measure);
+        }, []);
+
         const getWeekDates = () => {
           const curr = new Date(currentDate);
           const first = curr.getDate() - curr.getDay() + 1; // Monday
@@ -6290,14 +6307,14 @@
           const end = new Date(event.endDateTime);
           const startHour = start.getHours() + start.getMinutes() / 60;
           const endHour = end.getHours() + end.getMinutes() / 60;
-          const top = ((startHour - 6) * 60);
-          const height = ((endHour - startHour) * 60);
+          const top = ((startHour - 6) * pixelsPerHour);
+          const height = ((endHour - startHour) * pixelsPerHour);
           return {
             position: 'absolute',
             top: `${top}px`,
             left: '2px',
             right: '2px',
-            height: `${Math.max(height, 20)}px`,
+            height: `${Math.max(height, 15)}px`,
             zIndex: 1
           };
         };
@@ -6305,7 +6322,7 @@
         // Drag-and-drop rescheduling constants
         const DRAG_THRESHOLD = 5;
         const SNAP_MINUTES = 15;
-        const PIXELS_PER_HOUR = 60;
+        const PIXELS_PER_HOUR = pixelsPerHour;
         const TIMELINE_START_HOUR = 6;
         const TIMELINE_END_HOUR = 22;
         const GHOST_OPACITY = 0.7;
@@ -6663,12 +6680,12 @@
                 </div>
 
                 {/* Timeline Grid */}
-                <div id="weekly-scroll" style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
+                <div id="weekly-scroll" ref={weeklyScrollRef} style={{ flex: 1, overflowY: 'hidden', position: 'relative' }}>
                   <div id="weekly-grid" style={{ display: 'grid', gridTemplateColumns: '60px repeat(7, 1fr)', position: 'relative' }}>
                     {/* Time Labels */}
                     <div style={{ position: 'sticky', left: 0, zIndex: 2, background: 'white' }}>
                       {hours.map(hour => (
-                        <div key={hour} style={{ height: '60px', padding: '8px', fontSize: '12px', color: '#6b9b7a', borderBottom: '1px solid #f0f0f0', textAlign: 'right', paddingRight: '8px' }}>
+                        <div key={hour} style={{ height: `${pixelsPerHour}px`, padding: pixelsPerHour < 40 ? '2px 8px' : '8px', fontSize: pixelsPerHour < 40 ? '10px' : '12px', color: '#6b9b7a', borderBottom: '1px solid #f0f0f0', textAlign: 'right', paddingRight: '8px', display: 'flex', alignItems: 'flex-start' }}>
                           {hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`}
                         </div>
                       ))}
@@ -6685,7 +6702,7 @@
                           {hours.map(hour => (
                             <div
                               key={hour}
-                              style={{ height: '60px', borderBottom: '1px solid #f0f0f0', cursor: isSelectMode ? 'default' : draggedEvent ? 'grabbing' : 'pointer' }}
+                              style={{ height: `${pixelsPerHour}px`, borderBottom: '1px solid #f0f0f0', cursor: isSelectMode ? 'default' : draggedEvent ? 'grabbing' : 'pointer' }}
                               onClick={() => {
                                 if (!isSelectMode && !draggedEvent) {
                                   const h = hour.toString().padStart(2, '0');
@@ -6714,7 +6731,7 @@
 
                           {/* Drop target highlight */}
                           {dragOverSlot && dragOverSlot.dayIndex === dayIndex && (() => {
-                            const highlightTop = (dragOverSlot.hour - TIMELINE_START_HOUR) * PIXELS_PER_HOUR + dragOverSlot.minute;
+                            const highlightTop = (dragOverSlot.hour - TIMELINE_START_HOUR) * PIXELS_PER_HOUR + (dragOverSlot.minute / 60) * PIXELS_PER_HOUR;
                             const displayHour = dragOverSlot.hour > 12 ? dragOverSlot.hour - 12 : dragOverSlot.hour === 0 ? 12 : dragOverSlot.hour;
                             const ampm = dragOverSlot.hour >= 12 ? 'PM' : 'AM';
                             const displayMinute = dragOverSlot.minute.toString().padStart(2, '0');
