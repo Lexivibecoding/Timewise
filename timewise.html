@@ -3,18 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://accounts.google.com https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://firestore.googleapis.com https://www.googleapis.com https://oauth2.googleapis.com https://*.firebaseapp.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; img-src 'self' data: https:; frame-src https://accounts.google.com https://*.firebaseapp.com; frame-ancestors 'none';">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>TimeWise - Time Management App</title>
-  <script crossorigin="anonymous" src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z"></script>
-  <script crossorigin="anonymous" src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1"></script>
-  <script crossorigin="anonymous" src="https://unpkg.com/@babel/standalone@7.29.1/babel.min.js" integrity="sha384-Fo0OdKhdnE7y2WmzjOMW4PYjHkkANeu1501pWTqKrzAPeJMFQb4ZTdAA9dtrVUJV"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script crossorigin="anonymous" src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js" integrity="sha384-AQ3POAMqIhwS81FrUH95ekxqBZHeP5tG2JfEL3+7GuTtfRLWnrRh32UxwzM+//A9"></script>
-  <script crossorigin="anonymous" src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js" integrity="sha384-TnlRYaR4JYz/lpaGuaiU61PjNberSA4vjLjtF+oRC/IkohkJqnWxw5EmDSOt1vA1"></script>
-  <script crossorigin="anonymous" src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js" integrity="sha384-qn4Jh88HhJA8dplNQyGjOh9OGI4izVhrfj/qIFgaKcdgOE06pXqIKGlsCILZcLAC"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
   <style>
     * {
@@ -1447,16 +1449,19 @@
       const data = {};
 
       const savedCategories = localStorage.getItem('timewise_categories');
-      if (savedCategories) { const parsed = safeParse(savedCategories); if (parsed) data.categories = parsed; }
+      if (savedCategories) data.categories = JSON.parse(savedCategories);
 
       const savedProjects = localStorage.getItem('timewise_projects');
-      if (savedProjects) { const parsed = safeParse(savedProjects); if (parsed) data.projects = parsed; }
+      if (savedProjects) data.projects = JSON.parse(savedProjects);
 
       const savedIncompleteReasons = localStorage.getItem('timewise_incomplete_reasons');
-      if (savedIncompleteReasons) { const parsed = safeParse(savedIncompleteReasons); if (parsed) data.incompleteReasons = parsed; }
+      if (savedIncompleteReasons) data.incompleteReasons = JSON.parse(savedIncompleteReasons);
 
       const savedWeeklyGoals = localStorage.getItem('weekly_goals');
-      if (savedWeeklyGoals) { const parsed = safeParse(savedWeeklyGoals); if (parsed) data.weeklyGoals = parsed; }
+      if (savedWeeklyGoals) data.weeklyGoals = JSON.parse(savedWeeklyGoals);
+
+      const savedMonthlyHabits = localStorage.getItem('timewise_monthly_habits');
+      if (savedMonthlyHabits) data.monthlyHabits = JSON.parse(savedMonthlyHabits);
 
       const savedJournalUrl = localStorage.getItem('journal_doc_url');
       if (savedJournalUrl) data.journalDocUrl = savedJournalUrl;
@@ -1464,17 +1469,17 @@
       const savedGoogleConnection = localStorage.getItem('google_connected');
       const savedClientId = localStorage.getItem('google_client_id');
       const savedSheetUrl = localStorage.getItem('google_sheet_url');
+      const savedAccessToken = localStorage.getItem('google_access_token');
+      const savedTokenExpiry = localStorage.getItem('google_token_expiry');
       if (savedClientId || savedSheetUrl) {
         data.googleCalendar = {
-          connected: false,
+          connected: savedGoogleConnection === 'true',
           clientId: savedClientId || '',
           sheetUrl: savedSheetUrl || '',
+          accessToken: savedAccessToken || '',
+          tokenExpiry: savedTokenExpiry ? parseInt(savedTokenExpiry) : 0
         };
       }
-      // Clean up any legacy token storage from localStorage
-      localStorage.removeItem('google_access_token');
-      localStorage.removeItem('google_token_expiry');
-      localStorage.removeItem('google_connected');
 
       data.profile = {
         email: auth.currentUser?.email || '',
@@ -1488,7 +1493,7 @@
       // Migrate events to subcollection
       const savedEvents = localStorage.getItem('timewise_events');
       if (savedEvents) {
-        const events = safeParse(savedEvents, []);
+        const events = JSON.parse(savedEvents);
         if (events.length > 0) {
           const ops = events.map(event => (batch) => {
             const ref = userRef.collection('events').doc(event.id);
@@ -1503,6 +1508,15 @@
 
     const { useState, useEffect, useRef } = React;
 
+    // Module-level drag state (survives component remounts)
+    const _drag = {
+      ref: null,          // { event, startX, startY, dayIndex, duration, elementWidth, elementHeight, offsetY }
+      ghost: null,         // Ghost DOM element
+      activated: false,    // Whether drag threshold was met
+      lastEndTime: 0,      // Timestamp of last drag end to suppress click
+      overSlot: null       // Current drop target { dayIndex, hour, minute }
+    };
+
     // Simple icon components
     const ChevronLeft = () => <span>←</span>;
     const ChevronRight = () => <span>→</span>;
@@ -1513,26 +1527,6 @@
     const Target = () => <span>🎯</span>;
     const Grid = () => <span>📅</span>;
     const List = () => <span>📋</span>;
-
-    // Input sanitization
-    const sanitize = (str, maxLength = 200) => {
-      if (typeof str !== 'string') return '';
-      return str.trim().slice(0, maxLength);
-    };
-
-    // URL validation — only allow https URLs
-    const isSafeUrl = (url) => {
-      try {
-        const parsed = new URL(url);
-        return parsed.protocol === 'https:';
-      } catch { return false; }
-    };
-
-    // Safe JSON parse — returns fallback on corrupted data
-    const safeParse = (str, fallback = null) => {
-      try { return JSON.parse(str); }
-      catch (e) { console.warn('[TimeWise] Failed to parse stored data:', e.message); return fallback; }
-    };
 
     // Utility functions
     const formatDate = (date) => {
@@ -1567,12 +1561,6 @@
         e.preventDefault();
         setError('');
         if (!email || !password) { setError('Please fill in all fields'); return; }
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) { setError('Please enter a valid email address'); return; }
-        if (isSignUp && password.length < 8) { setError('Password must be at least 8 characters'); return; }
-        if (isSignUp && (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password))) {
-          setError('Password must include uppercase, lowercase, and a number'); return;
-        }
         setLoading(true);
         try {
           if (isSignUp) {
@@ -1590,8 +1578,7 @@
         <div className="auth-container">
           <div className="auth-card">
             <h1>TimeWise</h1>
-            <p className="auth-subtitle">I choose to grow with time, like a tree 🌲</p>
-            <p style={{ fontSize: '12px', color: '#9bb3a0', marginTop: '-24px', marginBottom: '24px', textAlign: 'center' }}>developed by Rong.L.Xu</p>
+            <p className="auth-subtitle">🌲 I choose to grow with time, like a tree — Lexi R.Xu</p>
 
             {error && <div className="auth-error">{error}</div>}
 
@@ -1643,14 +1630,12 @@
         { id: '1', name: 'Sleep', color: '#8e44ad' },
         { id: '2', name: 'Reading', color: '#3498db' },
         { id: '3', name: 'Working', color: '#e74c3c' },
-        { id: '4', name: 'Sports', color: '#f39c12' },
-        { id: '5', name: 'Disruption', color: '#95a5a6' }
+        { id: '4', name: 'Sports', color: '#f39c12' }
       ]);
       const [yearlyProjects, setYearlyProjects] = useState([
         { id: '1', name: 'Q4 Financial Report', deadline: new Date('2025-03-31') },
         { id: '2', name: 'Yoga Certification', deadline: new Date('2025-06-15') }
       ]);
-      const [editingEventId, setEditingEventId] = useState(null);
       const [showEventModal, setShowEventModal] = useState(false);
       const [showCategoryModal, setShowCategoryModal] = useState(false);
       const [showProjectModal, setShowProjectModal] = useState(false);
@@ -1682,6 +1667,10 @@
       const [weeklyGoals, setWeeklyGoals] = useState({}); // { 'YYYY-WW': { goal: '', highlight: '', lowlight: '' } }
       const [showJournalModal, setShowJournalModal] = useState(false);
       const [showWeeklyReflectionModal, setShowWeeklyReflectionModal] = useState(false);
+
+      // Monthly Habits
+      const [monthlyHabits, setMonthlyHabits] = useState({}); // { 'YYYY-MM': { habits: [{ name, days: { 1: true, 2: false, ... } }] } }
+      const [showHabitModal, setShowHabitModal] = useState(false);
 
       // Weekly view interactive state
       const [isSelectMode, setIsSelectMode] = useState(false);
@@ -1745,12 +1734,14 @@
             const savedIncompleteReasons = localStorage.getItem('timewise_incomplete_reasons');
             const savedWeeklyGoals = localStorage.getItem('weekly_goals');
             const savedJournalUrl = localStorage.getItem('journal_doc_url');
-            if (savedEvents) { const parsed = safeParse(savedEvents, []); if (parsed.length) setEvents(parsed); }
-            if (savedCategories) { const parsed = safeParse(savedCategories); if (parsed) setCategories(parsed); }
-            if (savedProjects) { const parsed = safeParse(savedProjects); if (parsed) setYearlyProjects(parsed.map(p => ({ ...p, deadline: new Date(p.deadline) }))); }
-            if (savedIncompleteReasons) { const parsed = safeParse(savedIncompleteReasons); if (parsed) setIncompleteReasons(parsed); }
-            if (savedWeeklyGoals) { const parsed = safeParse(savedWeeklyGoals); if (parsed) setWeeklyGoals(parsed); }
+            if (savedEvents) setEvents(JSON.parse(savedEvents));
+            if (savedCategories) setCategories(JSON.parse(savedCategories));
+            if (savedProjects) setYearlyProjects(JSON.parse(savedProjects).map(p => ({ ...p, deadline: new Date(p.deadline) })));
+            if (savedIncompleteReasons) setIncompleteReasons(JSON.parse(savedIncompleteReasons));
+            if (savedWeeklyGoals) setWeeklyGoals(JSON.parse(savedWeeklyGoals));
             if (savedJournalUrl) setJournalDocUrl(savedJournalUrl);
+            const savedMonthlyHabits2 = localStorage.getItem('timewise_monthly_habits');
+            if (savedMonthlyHabits2) setMonthlyHabits(JSON.parse(savedMonthlyHabits2));
             dataLoadedRef.current = true;
           }
           if (!cancelled) setDataLoading(false);
@@ -1767,11 +1758,18 @@
           if (data.incompleteReasons) setIncompleteReasons(data.incompleteReasons);
           if (data.weeklyGoals) setWeeklyGoals(data.weeklyGoals);
           if (data.journalDocUrl) setJournalDocUrl(data.journalDocUrl);
+          if (data.monthlyHabits) setMonthlyHabits(data.monthlyHabits);
           if (data.googleCalendar) {
             const gc = data.googleCalendar;
             if (gc.sheetUrl) setGoogleSheetUrl(gc.sheetUrl);
             if (gc.clientId) setGoogleClientId(gc.clientId);
-            // Tokens are no longer persisted — user must re-authenticate each session
+            if (gc.connected && gc.accessToken && gc.tokenExpiry) {
+              if (Date.now() < gc.tokenExpiry) {
+                setGoogleConnected(true);
+                setGoogleAccessToken(gc.accessToken);
+                setSyncStatus('connected');
+              }
+            }
           }
         };
 
@@ -1808,6 +1806,11 @@
         if (!currentUser || !dataLoadedRef.current) return;
         db.collection('users').doc(currentUser.uid).set({ weeklyGoals }, { merge: true }).catch(console.error);
       }, [weeklyGoals]);
+
+      useEffect(() => {
+        if (!currentUser || !dataLoadedRef.current) return;
+        db.collection('users').doc(currentUser.uid).set({ monthlyHabits }, { merge: true }).catch(console.error);
+      }, [monthlyHabits]);
 
       // Convert Date objects to ISO strings for Firestore storage
       const serializeEvent = (event) => {
@@ -1882,6 +1885,70 @@
         const pastDaysOfYear = (d - firstDayOfYear) / 86400000;
         const weekNumber = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
         return `${year}-W${String(weekNumber).padStart(2, '0')}`;
+      };
+
+      // Get ISO week number for a date
+      const getWeekNumber = (date) => {
+        const d = new Date(date);
+        d.setHours(0, 0, 0, 0);
+        d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+        const week1 = new Date(d.getFullYear(), 0, 4);
+        return 1 + Math.round(((d - week1) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
+      };
+
+      // Get month key (YYYY-MM format)
+      const getMonthKey = (date) => {
+        const d = new Date(date);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      };
+
+      // Calculate habit streak (consecutive months with >50% completion)
+      const getHabitStreak = (habitName) => {
+        let streak = 0;
+        const now = new Date();
+        let checkDate = new Date(now.getFullYear(), now.getMonth(), 1);
+
+        while (true) {
+          const key = getMonthKey(checkDate);
+          const monthData = monthlyHabits[key];
+          if (!monthData || !monthData.habits) break;
+
+          const habit = monthData.habits.find(h => h.name === habitName);
+          if (!habit || !habit.days) break;
+
+          const daysInMonth = new Date(checkDate.getFullYear(), checkDate.getMonth() + 1, 0).getDate();
+          const isPastMonth = checkDate.getMonth() !== now.getMonth() || checkDate.getFullYear() !== now.getFullYear();
+          const totalDays = isPastMonth ? daysInMonth : now.getDate();
+          const completedDays = Object.values(habit.days).filter(v => v === true).length;
+
+          if (totalDays > 0 && (completedDays / totalDays) > 0.5) {
+            streak++;
+            checkDate.setMonth(checkDate.getMonth() - 1);
+          } else {
+            break;
+          }
+        }
+        return streak;
+      };
+
+      // Get incomplete reasons summary for a month
+      const getMonthlyIncompleteReasons = (year, month) => {
+        const monthEvents = events.filter(e => {
+          const d = new Date(e.startDateTime);
+          return d.getFullYear() === year && d.getMonth() === month && e.type === 'actual' && e.incompleteReason;
+        });
+
+        const reasonCounts = {};
+        monthEvents.forEach(e => {
+          const reason = e.incompleteReason;
+          reasonCounts[reason] = (reasonCounts[reason] || 0) + 1;
+        });
+
+        const sorted = Object.entries(reasonCounts)
+          .map(([reason, count]) => ({ reason, count }))
+          .sort((a, b) => b.count - a.count);
+
+        return { reasons: sorted, totalIncomplete: monthEvents.length };
       };
 
       // Get current week's data
@@ -2250,31 +2317,27 @@
         };
 
         const handleSave = () => {
-          const cleanTitle = sanitize(eventData.title, 100);
-          if (!cleanTitle) {
+          if (!eventData.title.trim()) {
             alert('Please enter an event title');
             return;
           }
-
+          
           const eventToSave = {
             ...eventData,
-            title: cleanTitle,
-            description: sanitize(eventData.description, 500),
-            location: sanitize(eventData.location, 200),
             startDateTime: new Date(`${eventData.startDate}T${eventData.startTime}`),
             endDateTime: new Date(`${eventData.endDate}T${eventData.endTime}`)
           };
 
           // Check if we're editing an existing event
-          if (editingEventId) {
+          if (window.__editingEventId) {
             // Update existing event
             const updated = events.map(e =>
-              e.id === editingEventId ? { ...e, ...eventToSave } : e
+              e.id === window.__editingEventId ? { ...e, ...eventToSave } : e
             );
             setEvents(updated);
-            const savedEvt = updated.find(e => e.id === editingEventId);
+            const savedEvt = updated.find(e => e.id === window.__editingEventId);
             if (savedEvt) saveEventToFirestore(savedEvt);
-            setEditingEventId(null);
+            window.__editingEventId = null;
           } else {
             // Create new event(s) with recurrence
             const newEvents = createRecurringEvents(eventToSave);
@@ -2295,8 +2358,8 @@
         };
 
         const handleDelete = () => {
-          if (editingEventId) {
-            const eventToDelete = events.find(e => e.id === editingEventId);
+          if (window.__editingEventId) {
+            const eventToDelete = events.find(e => e.id === window.__editingEventId);
             if (!eventToDelete) return;
 
             // Smart recurring detection: same title, type, AND similar time-of-day
@@ -2305,7 +2368,7 @@
             if (recurringMatches.length > 0) {
               // Open the RecurringDeleteModal instead of confirm()
               setRecurringDeleteContext({
-                eventId: editingEventId,
+                eventId: window.__editingEventId,
                 additionalRecurring: recurringMatches,
                 source: 'single'
               });
@@ -2335,7 +2398,7 @@
                 if (!confirm('Delete this single event?')) {
                   return;
                 }
-                deleteIds = new Set([editingEventId]);
+                deleteIds = new Set([window.__editingEventId]);
               }
 
               deleteEventsFromGoogle(events.filter(e => deleteIds.has(e.id)));
@@ -2345,13 +2408,13 @@
               if (!confirm('Are you sure you want to delete this event?')) {
                 return;
               }
-              const evtToDelete = events.find(e => e.id === editingEventId);
+              const evtToDelete = events.find(e => e.id === window.__editingEventId);
               if (evtToDelete) deleteEventsFromGoogle([evtToDelete]);
-              setEvents(events.filter(e => e.id !== editingEventId));
-              deleteEventFromFirestore(editingEventId);
+              setEvents(events.filter(e => e.id !== window.__editingEventId));
+              deleteEventFromFirestore(window.__editingEventId);
             }
 
-            setEditingEventId(null);
+            window.__editingEventId = null;
 
             // Force view refresh
             setTimeout(() => {
@@ -2366,10 +2429,10 @@
           <div className="modal-overlay" onClick={() => {
             setShowEventModal(false);
             setPrefilledEventData(null);
-            setEditingEventId(null);
+            window.__editingEventId = null;
           }}>
             <div className="modal" onClick={e => e.stopPropagation()}>
-              <h2>{editingEventId ? 'Edit Event' : 'Create Event'}</h2>
+              <h2>{window.__editingEventId ? 'Edit Event' : 'Create Event'}</h2>
               
               <div className="form-group">
                 <label>Event Type</label>
@@ -2531,9 +2594,9 @@
               <div className="modal-actions" style={{ 
                 display: 'flex', 
                 gap: '8px', 
-                justifyContent: editingEventId ? 'space-between' : 'flex-end' 
+                justifyContent: window.__editingEventId ? 'space-between' : 'flex-end' 
               }}>
-                {editingEventId && (
+                {window.__editingEventId && (
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button
                       className="btn-secondary"
@@ -2552,7 +2615,7 @@
                       className="btn-secondary"
                       disabled={!googleConnected}
                       onClick={() => {
-                        const evt = events.find(e => e.id === editingEventId);
+                        const evt = events.find(e => e.id === window.__editingEventId);
                         if (evt) pushEventToGoogle(evt);
                       }}
                       style={{
@@ -2573,7 +2636,7 @@
                   <button className="btn-secondary" onClick={() => {
                     setShowEventModal(false);
                     setPrefilledEventData(null);
-                    setEditingEventId(null);
+                    window.__editingEventId = null;
                   }}>Cancel</button>
                   <button className="btn-primary" onClick={handleSave}>Save Event</button>
                 </div>
@@ -2588,12 +2651,10 @@
         const [editingCategory, setEditingCategory] = useState(null);
 
         const addCategory = () => {
-          const cleanName = sanitize(newCategory.name, 50);
-          if (cleanName) {
-            setCategories([...categories, {
-              id: Date.now().toString(),
-              name: cleanName,
-              color: newCategory.color
+          if (newCategory.name.trim()) {
+            setCategories([...categories, { 
+              id: Date.now().toString(), 
+              ...newCategory 
             }]);
             setNewCategory({ name: '', color: '#6b9b7a' });
           }
@@ -2608,11 +2669,10 @@
         };
 
         const saveEdit = () => {
-          const cleanName = sanitize(editingCategory?.name, 50);
-          if (editingCategory && cleanName) {
+          if (editingCategory && editingCategory.name.trim()) {
             setCategories(categories.map(cat =>
               cat.id === editingCategory.id
-                ? { ...cat, name: cleanName, color: editingCategory.color }
+                ? { ...cat, name: editingCategory.name, color: editingCategory.color }
                 : cat
             ));
             setEditingCategory(null);
@@ -2717,11 +2777,10 @@
         const [editingProject, setEditingProject] = useState(null);
 
         const addProject = () => {
-          const cleanName = sanitize(newProject.name, 100);
-          if (cleanName && yearlyProjects.length < 3) {
+          if (newProject.name.trim() && yearlyProjects.length < 3) {
             setYearlyProjects([...yearlyProjects, {
               id: Date.now().toString(),
-              name: cleanName,
+              name: newProject.name,
               deadline: new Date(newProject.deadline),
               plannedHours: parseFloat(newProject.plannedHours) || 0
             }]);
@@ -2739,13 +2798,12 @@
         };
 
         const saveEdit = () => {
-          const cleanName = sanitize(editingProject?.name, 100);
-          if (editingProject && cleanName) {
-            setYearlyProjects(yearlyProjects.map(p =>
-              p.id === editingProject.id
-                ? {
-                    ...p,
-                    name: cleanName, 
+          if (editingProject && editingProject.name.trim()) {
+            setYearlyProjects(yearlyProjects.map(p => 
+              p.id === editingProject.id 
+                ? { 
+                    ...p, 
+                    name: editingProject.name, 
                     deadline: new Date(editingProject.deadline),
                     plannedHours: parseFloat(editingProject.plannedHours) || 0
                   }
@@ -3277,9 +3335,10 @@
       };
 
       const CompletionModal = () => {
-        const [completionType, setCompletionType] = useState('on_time'); // on_time, late, incomplete
-        const [lateTime, setLateTime] = useState('');
-        const [lateReason, setLateReason] = useState('');
+        const [completionType, setCompletionType] = useState('on_time'); // on_time, not_fully_completed, incomplete
+        const [notFullyCompletedStartTime, setNotFullyCompletedStartTime] = useState('');
+        const [notFullyCompletedEndTime, setNotFullyCompletedEndTime] = useState('');
+        const [notFullyCompletedReason, setNotFullyCompletedReason] = useState('');
         const [incompleteReason, setIncompleteReason] = useState('');
         const [actualEventTitle, setActualEventTitle] = useState('');
         const [actualStartTime, setActualStartTime] = useState('');
@@ -3294,6 +3353,7 @@
           const actualEvent = {
             id: Date.now().toString(),
             categoryId: event.categoryId,
+            projectId: event.projectId,
             type: 'actual',
             description: event.description,
             location: event.location,
@@ -3309,31 +3369,31 @@
             actualEvent.endDate = formatDate(new Date(event.endDateTime));
             actualEvent.endTime = formatTime(new Date(event.endDateTime));
             actualEvent.completionStatus = 'completed_on_time';
-          } else if (completionType === 'late') {
-            if (!lateTime || !lateReason) {
-              alert('Please enter late completion time and reason');
+          } else if (completionType === 'not_fully_completed') {
+            if (!notFullyCompletedStartTime || !notFullyCompletedEndTime || !notFullyCompletedReason) {
+              alert('Please enter actual start time, end time, and reason');
               return;
             }
-            const lateEndDateTime = new Date(event.startDateTime);
-            const [hours, minutes] = lateTime.split(':');
-            lateEndDateTime.setHours(parseInt(hours), parseInt(minutes));
-            
+            const startDate = formatDate(new Date(event.startDateTime));
+            const nfcStart = new Date(`${startDate}T${notFullyCompletedStartTime}`);
+            const nfcEnd = new Date(`${startDate}T${notFullyCompletedEndTime}`);
+
             actualEvent.title = event.title;
-            actualEvent.startDateTime = event.startDateTime;
-            actualEvent.endDateTime = lateEndDateTime;
-            actualEvent.startDate = formatDate(new Date(event.startDateTime));
-            actualEvent.startTime = formatTime(new Date(event.startDateTime));
-            actualEvent.endDate = formatDate(lateEndDateTime);
-            actualEvent.endTime = formatTime(lateEndDateTime);
-            actualEvent.completionStatus = 'completed_late';
-            actualEvent.lateReason = sanitize(lateReason, 300);
+            actualEvent.startDateTime = nfcStart;
+            actualEvent.endDateTime = nfcEnd;
+            actualEvent.startDate = startDate;
+            actualEvent.startTime = notFullyCompletedStartTime;
+            actualEvent.endDate = startDate;
+            actualEvent.endTime = notFullyCompletedEndTime;
+            actualEvent.completionStatus = 'not_fully_completed';
+            actualEvent.notFullyCompletedReason = notFullyCompletedReason;
           } else {
             if (!incompleteReason || !actualEventTitle || !actualStartTime || !actualEndTime) {
               alert('Please fill in all required fields');
               return;
             }
             const startDate = formatDate(new Date(event.startDateTime));
-            actualEvent.title = sanitize(actualEventTitle, 100);
+            actualEvent.title = actualEventTitle;
             actualEvent.startDateTime = new Date(`${startDate}T${actualStartTime}`);
             actualEvent.endDateTime = new Date(`${startDate}T${actualEndTime}`);
             actualEvent.startDate = startDate;
@@ -3342,9 +3402,6 @@
             actualEvent.endTime = actualEndTime;
             actualEvent.completionStatus = 'incomplete';
             actualEvent.incompleteReason = incompleteReason;
-            const disruptionCat = categories.find(c => c.name.toLowerCase() === 'disruption');
-            if (disruptionCat) actualEvent.categoryId = disruptionCat.id;
-            actualEvent.projectId = '';
           }
 
           const updatedEvent = {
@@ -3401,7 +3458,7 @@
                         projectId: event.projectId || ''
                       });
                       // Store the original event ID for updating
-                      setEditingEventId(event.id);
+                      window.__editingEventId = event.id;
                       setShowEventModal(true);
                     }}
                     style={{ width: '100%', padding: '12px', textAlign: 'left', marginBottom: '12px' }}
@@ -3443,22 +3500,18 @@
                     </div>
                   </button>
                   <button 
-                    className={`event-type-toggle ${completionType === 'late' ? 'active' : ''}`}
-                    onClick={() => setCompletionType('late')}
+                    className={`event-type-toggle ${completionType === 'not_fully_completed' ? 'active' : ''}`}
+                    onClick={() => setCompletionType('not_fully_completed')}
                     style={{ width: '100%', padding: '12px', textAlign: 'left' }}
                   >
-                    ⚠️ <strong>Completed Late</strong>
+                    ⚠️ <strong>Not Fully Completed</strong>
                     <div style={{ fontSize: '12px', marginTop: '4px', opacity: 0.8 }}>
-                      Took longer than expected
+                      Didn't finish as planned
                     </div>
                   </button>
                   <button 
                     className={`event-type-toggle ${completionType === 'incomplete' ? 'active' : ''}`}
-                    onClick={() => {
-                      setCompletionType('incomplete');
-                      setActualStartTime(formatTime(new Date(event.startDateTime)));
-                      setActualEndTime(formatTime(new Date(event.endDateTime)));
-                    }}
+                    onClick={() => setCompletionType('incomplete')}
                     style={{ width: '100%', padding: '12px', textAlign: 'left' }}
                   >
                     ❌ <strong>Not Completed</strong>
@@ -3469,23 +3522,31 @@
                 </div>
               </div>
 
-              {completionType === 'late' && (
+              {completionType === 'not_fully_completed' && (
                 <>
                   <div className="form-group">
-                    <label>Actual End Time *</label>
-                    <input 
-                      type="time" 
-                      value={lateTime}
-                      onChange={e => setLateTime(e.target.value)}
+                    <label>Actual Start Time *</label>
+                    <input
+                      type="time"
+                      value={notFullyCompletedStartTime}
+                      onChange={e => setNotFullyCompletedStartTime(e.target.value)}
                     />
                   </div>
                   <div className="form-group">
-                    <label>Reason for Delay *</label>
-                    <textarea 
-                      value={lateReason}
-                      onChange={e => setLateReason(e.target.value)}
+                    <label>Actual End Time *</label>
+                    <input
+                      type="time"
+                      value={notFullyCompletedEndTime}
+                      onChange={e => setNotFullyCompletedEndTime(e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Reason *</label>
+                    <textarea
+                      value={notFullyCompletedReason}
+                      onChange={e => setNotFullyCompletedReason(e.target.value)}
                       rows="3"
-                      placeholder="Why did this take longer than planned?"
+                      placeholder="Why wasn't this fully completed?"
                     />
                   </div>
                 </>
@@ -3626,10 +3687,8 @@
         };
         
         const handleOpen = () => {
-          if (docUrl && isSafeUrl(docUrl)) {
-            window.open(docUrl, '_blank', 'noopener,noreferrer');
-          } else if (docUrl) {
-            alert('Please enter a valid HTTPS URL.');
+          if (docUrl) {
+            window.open(docUrl, '_blank');
           } else {
             alert('Please set your Google Docs link first.');
           }
@@ -3863,6 +3922,113 @@
         );
       };
 
+      const HabitModal = () => {
+        const monthKey = getMonthKey(currentDate);
+        const currentData = monthlyHabits[monthKey] || { habits: [] };
+        const [newHabitName, setNewHabitName] = useState('');
+
+        const addHabit = () => {
+          const name = newHabitName.trim();
+          if (!name) return;
+          if (currentData.habits.some(h => h.name === name)) {
+            alert('Habit already exists!');
+            return;
+          }
+          const updated = {
+            ...monthlyHabits,
+            [monthKey]: {
+              habits: [...currentData.habits, { name, days: {} }]
+            }
+          };
+          setMonthlyHabits(updated);
+          setNewHabitName('');
+        };
+
+        const removeHabit = (habitName) => {
+          const updated = {
+            ...monthlyHabits,
+            [monthKey]: {
+              habits: currentData.habits.filter(h => h.name !== habitName)
+            }
+          };
+          setMonthlyHabits(updated);
+        };
+
+        return (
+          <div className="modal-overlay" onClick={() => setShowHabitModal(false)}>
+            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+              <h2 style={{ marginBottom: '8px', color: '#2d5a3d' }}>
+                Manage Habits
+              </h2>
+              <p style={{ fontSize: '13px', color: '#6b9b7a', marginBottom: '20px' }}>
+                {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              </p>
+
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+                <input
+                  type="text"
+                  value={newHabitName}
+                  onChange={e => setNewHabitName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addHabit()}
+                  placeholder="New habit name..."
+                  style={{
+                    flex: 1,
+                    padding: '10px 12px',
+                    border: '2px solid #e0f0e8',
+                    borderRadius: '8px',
+                    fontSize: '14px'
+                  }}
+                />
+                <button className="btn-primary" onClick={addHabit} style={{ padding: '10px 20px' }}>
+                  + Add
+                </button>
+              </div>
+
+              {currentData.habits.length === 0 && (
+                <p style={{ color: '#6b9b7a', textAlign: 'center', padding: '20px', fontSize: '13px' }}>
+                  No habits yet. Add one above!
+                </p>
+              )}
+
+              {currentData.habits.map(habit => (
+                <div key={habit.name} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 12px',
+                  background: '#f5f7f5',
+                  borderRadius: '8px',
+                  marginBottom: '8px'
+                }}>
+                  <span style={{ fontWeight: 500, color: '#2d5a3d' }}>{habit.name}</span>
+                  <button
+                    onClick={() => removeHabit(habit.name)}
+                    style={{
+                      background: '#fee2e2',
+                      border: 'none',
+                      color: '#dc2626',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      fontWeight: 600
+                    }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+
+              <div className="modal-actions" style={{ marginTop: '20px' }}>
+                <button className="btn-secondary" onClick={() => setShowHabitModal(false)}>
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      };
+
       const GoogleSetupModal = () => {
         const [clientId, setClientId] = useState(googleClientId);
 
@@ -3908,7 +4074,7 @@
                   How to get your OAuth Client ID:
                 </h4>
                 <ol style={{ fontSize: '13px', color: '#6b9b7a', paddingLeft: '20px', margin: 0, lineHeight: '1.8' }}>
-                  <li>Go to <a href="https://console.cloud.google.com" target="_blank" rel="noopener noreferrer" style={{ color: '#4285f4' }}>Google Cloud Console</a></li>
+                  <li>Go to <a href="https://console.cloud.google.com" target="_blank" style={{ color: '#4285f4' }}>Google Cloud Console</a></li>
                   <li>Create a new project or select existing one</li>
                   <li>Enable "Google Calendar API"</li>
                   <li>Go to "Credentials" → "Create Credentials" → "OAuth client ID"</li>
@@ -3968,7 +4134,11 @@
                   setGoogleAccessToken(response.access_token);
                   setGoogleConnected(true);
                   setSyncStatus('connected');
-                  // Token kept in memory only — not persisted to Firestore or localStorage
+                  if (currentUser) {
+                    db.collection('users').doc(currentUser.uid).set({
+                      googleCalendar: { connected: true, accessToken: response.access_token, tokenExpiry }
+                    }, { merge: true }).catch(console.error);
+                  }
                   alert('Successfully connected to Google Calendar!');
                 } else {
                   setSyncStatus('disconnected');
@@ -4010,7 +4180,7 @@
           setSyncStatus('disconnected');
           if (currentUser) {
             db.collection('users').doc(currentUser.uid).set({
-              googleCalendar: { connected: false }
+              googleCalendar: { connected: false, accessToken: '', tokenExpiry: 0 }
             }, { merge: true }).catch(console.error);
           }
 
@@ -4029,7 +4199,7 @@
           setSyncStatus('disconnected');
           if (currentUser) {
             db.collection('users').doc(currentUser.uid).set({
-              googleCalendar: { connected: false, clientId: '' }
+              googleCalendar: { connected: false, accessToken: '', tokenExpiry: 0, clientId: '' }
             }, { merge: true }).catch(console.error);
           }
 
@@ -5206,6 +5376,19 @@
 
         const plannedStats = calculateStats('planned');
         const actualStats = calculateStats('actual');
+
+        // Sort categories by hours descending
+        plannedStats.categoryStats.sort((a, b) => b.hours - a.hours);
+        actualStats.categoryStats.sort((a, b) => b.hours - a.hours);
+        actualStats.projectStats.sort((a, b) => b.hours - a.hours);
+
+        // Compute max hours across both planned and actual for comparable bar widths
+        const allCatHours = [
+          ...plannedStats.categoryStats.map(s => s.hours),
+          ...actualStats.categoryStats.map(s => s.hours)
+        ];
+        const maxCategoryHours = Math.max(...allCatHours, 0.1);
+
         const hasPlannedData = plannedStats.categoryStats.some(stat => stat.hours > 0);
         const hasActualData = actualStats.categoryStats.some(stat => stat.hours > 0);
 
@@ -5338,24 +5521,23 @@
                         {plannedStats.categoryStats.filter(s => s.hours > 0).map(stat => (
                           <div key={stat.id} className="stat-item">
                             <div className="stat-header">
-                              <div className="stat-color" style={{ 
+                              <div className="stat-color" style={{
                                 backgroundColor: stat.color,
                                 borderStyle: 'dashed',
                                 borderWidth: '2px'
                               }}></div>
                               <span className="stat-name">{stat.name}</span>
-                              <span className="stat-hours">{stat.hours}h</span>
+                              <span className="stat-hours">{stat.hours}h ({stat.percentage}%)</span>
                             </div>
                             <div className="stat-bar">
-                              <div 
-                                className="stat-fill" 
-                                style={{ 
-                                  width: `${stat.percentage}%`,
+                              <div
+                                className="stat-fill"
+                                style={{
+                                  width: `${(stat.hours / maxCategoryHours) * 100}%`,
                                   background: `linear-gradient(135deg, ${stat.color}30 0%, ${stat.color}50 100%)`
                                 }}
                               ></div>
                             </div>
-                            <div className="stat-percentage">{stat.percentage}%</div>
                           </div>
                         ))}
                       </div>
@@ -5395,18 +5577,17 @@
                             <div className="stat-header">
                               <div className="stat-color" style={{ backgroundColor: stat.color }}></div>
                               <span className="stat-name">{stat.name}</span>
-                              <span className="stat-hours">{stat.hours}h</span>
+                              <span className="stat-hours">{stat.hours}h ({stat.percentage}%)</span>
                             </div>
                             <div className="stat-bar">
-                              <div 
-                                className="stat-fill" 
-                                style={{ 
-                                  width: `${stat.percentage}%`,
+                              <div
+                                className="stat-fill"
+                                style={{
+                                  width: `${(stat.hours / maxCategoryHours) * 100}%`,
                                   background: `linear-gradient(135deg, ${stat.color}B0 0%, ${stat.color}D0 100%)`
                                 }}
                               ></div>
                             </div>
-                            <div className="stat-percentage">{stat.percentage}%</div>
                           </div>
                         ))}
                       </div>
@@ -6121,6 +6302,160 @@
           };
         };
 
+        // Drag-and-drop rescheduling constants
+        const DRAG_THRESHOLD = 5;
+        const SNAP_MINUTES = 15;
+        const PIXELS_PER_HOUR = 60;
+        const TIMELINE_START_HOUR = 6;
+        const TIMELINE_END_HOUR = 22;
+        const GHOST_OPACITY = 0.7;
+
+        // Store weekDates and setters in _drag so document listeners can access current values
+        const _weekDates = weekDates;
+
+        const handleDragStart = (e, event, dayIndex) => {
+          if (isSelectMode) return;
+          if (e.button !== 0) return; // Only left click
+
+          const eventEl = e.currentTarget;
+          const rect = eventEl.getBoundingClientRect();
+          const start = new Date(event.startDateTime);
+          const end = new Date(event.endDateTime);
+          const duration = end - start; // in ms
+          const evtCategory = categories.find(c => c.id === event.categoryId);
+          const ghostColor = evtCategory?.color || '#4a7c59';
+
+          _drag.ref = {
+            event,
+            startX: e.clientX,
+            startY: e.clientY,
+            dayIndex,
+            duration,
+            elementWidth: rect.width,
+            elementHeight: rect.height,
+            offsetY: e.clientY - rect.top,
+            ghostColor
+          };
+          _drag.activated = false;
+
+          const onMove = (ev) => {
+            if (!_drag.ref) return;
+
+            const dx = ev.clientX - _drag.ref.startX;
+            const dy = ev.clientY - _drag.ref.startY;
+
+            // Check drag threshold
+            if (!_drag.activated) {
+              if (Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return;
+              _drag.activated = true;
+              setDraggedEvent(_drag.ref.event);
+              document.body.style.cursor = 'grabbing';
+              document.body.style.userSelect = 'none';
+
+              // Create ghost element
+              const ghost = document.createElement('div');
+              ghost.style.cssText = `
+                position: fixed;
+                width: ${_drag.ref.elementWidth}px;
+                height: ${_drag.ref.elementHeight}px;
+                opacity: ${GHOST_OPACITY};
+                pointer-events: none;
+                z-index: 10000;
+                border-radius: 6px;
+                background: ${_drag.ref.ghostColor};
+                border: 2px solid ${_drag.ref.ghostColor};
+                padding: 4px 6px;
+                box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+                font-size: 11px;
+                font-weight: 600;
+                color: white;
+                overflow: hidden;
+              `;
+              ghost.textContent = _drag.ref.event.title;
+              document.body.appendChild(ghost);
+              _drag.ghost = ghost;
+            }
+
+            // Position ghost at cursor
+            if (_drag.ghost) {
+              _drag.ghost.style.left = `${ev.clientX - _drag.ref.elementWidth / 2}px`;
+              _drag.ghost.style.top = `${ev.clientY - _drag.ref.offsetY}px`;
+            }
+
+            // Determine target day and time from cursor position
+            const gridEl = document.getElementById('weekly-grid');
+            if (!gridEl) return;
+
+            const gridRect = gridEl.getBoundingClientRect();
+            const timeLabelsWidth = 60;
+            const columnsWidth = gridRect.width - timeLabelsWidth;
+            const relativeX = ev.clientX - gridRect.left - timeLabelsWidth;
+            const columnWidth = columnsWidth / 7;
+            const targetDayIndex = Math.max(0, Math.min(6, Math.floor(relativeX / columnWidth)));
+
+            const relativeY = ev.clientY - gridRect.top - _drag.ref.offsetY;
+            const totalMinutes = (relativeY / PIXELS_PER_HOUR) * 60 + TIMELINE_START_HOUR * 60;
+            const snappedMinutes = Math.round(totalMinutes / SNAP_MINUTES) * SNAP_MINUTES;
+            const clampedMinutes = Math.max(TIMELINE_START_HOUR * 60, Math.min(TIMELINE_END_HOUR * 60, snappedMinutes));
+            const targetHour = Math.floor(clampedMinutes / 60);
+            const targetMinute = clampedMinutes % 60;
+
+            _drag.overSlot = { dayIndex: targetDayIndex, hour: targetHour, minute: targetMinute };
+            setDragOverSlot(_drag.overSlot);
+          };
+
+          const onUp = (ev) => {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+
+            // Clean up ghost
+            if (_drag.ghost) {
+              document.body.removeChild(_drag.ghost);
+              _drag.ghost = null;
+            }
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+
+            const wasDragActivated = _drag.activated;
+            const dragData = _drag.ref;
+            const currentDragOverSlot = _drag.overSlot;
+            _drag.ref = null;
+            _drag.activated = false;
+            _drag.overSlot = null;
+            if (wasDragActivated) _drag.lastEndTime = Date.now();
+            setDraggedEvent(null);
+            setDragOverSlot(null);
+
+            if (!wasDragActivated || !dragData) return;
+            if (!currentDragOverSlot) return;
+
+            // Calculate new times preserving duration
+            const targetDate = new Date(_weekDates[currentDragOverSlot.dayIndex]);
+            const newStart = new Date(targetDate);
+            newStart.setHours(currentDragOverSlot.hour, currentDragOverSlot.minute, 0, 0);
+            const newEnd = new Date(newStart.getTime() + dragData.duration);
+
+            // Clamp end time to timeline bounds
+            const maxEnd = new Date(targetDate);
+            maxEnd.setHours(TIMELINE_END_HOUR, 0, 0, 0);
+            if (newEnd > maxEnd) {
+              newEnd.setTime(maxEnd.getTime());
+            }
+
+            const updatedEvent = {
+              ...dragData.event,
+              startDateTime: newStart,
+              endDateTime: newEnd
+            };
+
+            setEvents(prev => prev.map(ev => ev.id === updatedEvent.id ? updatedEvent : ev));
+            saveEventToFirestore(updatedEvent);
+          };
+
+          document.addEventListener('mousemove', onMove);
+          document.addEventListener('mouseup', onUp);
+        };
+
         // Navigate week
         const goToPreviousWeek = () => {
           const newDate = new Date(currentDate);
@@ -6153,8 +6488,17 @@
               alignItems: 'center',
               justifyContent: 'space-between'
             }}>
-              <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '600', color: '#2d5a3d' }}>
+              <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '600', color: '#2d5a3d', display: 'flex', alignItems: 'center', gap: '12px' }}>
                 {weekStart.toLocaleDateString('default', { month: 'short', day: 'numeric' })} - {weekEnd.toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' })}
+                <span style={{
+                  background: '#e8f5eb',
+                  color: '#2d5a3d',
+                  padding: '4px 12px',
+                  borderRadius: '20px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  border: '1px solid #4a7c59'
+                }}>Week {getWeekNumber(weekStart)}</span>
               </h2>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <button
@@ -6319,8 +6663,8 @@
                 </div>
 
                 {/* Timeline Grid */}
-                <div style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '60px repeat(7, 1fr)', position: 'relative' }}>
+                <div id="weekly-scroll" style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
+                  <div id="weekly-grid" style={{ display: 'grid', gridTemplateColumns: '60px repeat(7, 1fr)', position: 'relative' }}>
                     {/* Time Labels */}
                     <div style={{ position: 'sticky', left: 0, zIndex: 2, background: 'white' }}>
                       {hours.map(hour => (
@@ -6341,9 +6685,9 @@
                           {hours.map(hour => (
                             <div
                               key={hour}
-                              style={{ height: '60px', borderBottom: '1px solid #f0f0f0', cursor: isSelectMode ? 'default' : 'pointer' }}
+                              style={{ height: '60px', borderBottom: '1px solid #f0f0f0', cursor: isSelectMode ? 'default' : draggedEvent ? 'grabbing' : 'pointer' }}
                               onClick={() => {
-                                if (!isSelectMode) {
+                                if (!isSelectMode && !draggedEvent) {
                                   const h = hour.toString().padStart(2, '0');
                                   setPrefilledEventData({
                                     title: '',
@@ -6359,14 +6703,43 @@
                                     recurrence: 'once',
                                     recurrenceEndDate: ''
                                   });
-                                  setEditingEventId(null);
+                                  window.__editingEventId = null;
                                   setShowEventModal(true);
                                 }
                               }}
-                              onMouseEnter={e => { if (!isSelectMode) e.currentTarget.style.background = '#f0f9f4'; }}
-                              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                              onMouseEnter={e => { if (!isSelectMode && !draggedEvent) e.currentTarget.style.background = '#f0f9f4'; }}
+                              onMouseLeave={e => { if (!draggedEvent) e.currentTarget.style.background = 'transparent'; }}
                             />
                           ))}
+
+                          {/* Drop target highlight */}
+                          {dragOverSlot && dragOverSlot.dayIndex === dayIndex && (() => {
+                            const highlightTop = (dragOverSlot.hour - TIMELINE_START_HOUR) * PIXELS_PER_HOUR + dragOverSlot.minute;
+                            const displayHour = dragOverSlot.hour > 12 ? dragOverSlot.hour - 12 : dragOverSlot.hour === 0 ? 12 : dragOverSlot.hour;
+                            const ampm = dragOverSlot.hour >= 12 ? 'PM' : 'AM';
+                            const displayMinute = dragOverSlot.minute.toString().padStart(2, '0');
+                            return (
+                              <div style={{
+                                position: 'absolute',
+                                top: `${highlightTop}px`,
+                                left: '2px',
+                                right: '2px',
+                                height: '30px',
+                                background: 'rgba(76, 175, 80, 0.2)',
+                                border: '2px dashed #4caf50',
+                                borderRadius: '6px',
+                                zIndex: 5,
+                                pointerEvents: 'none',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}>
+                                <span style={{ fontSize: '11px', fontWeight: '700', color: '#2e7d32' }}>
+                                  {displayHour}:{displayMinute} {ampm}
+                                </span>
+                              </div>
+                            );
+                          })()}
 
                           {/* Events */}
                           {dayEvents.map(event => {
@@ -6374,6 +6747,7 @@
                             const baseColor = category?.color || '#4a7c59';
                             const position = getEventPosition(event);
                             const isSelected = selectedEventIds.includes(event.id);
+                            const isDragging = draggedEvent && draggedEvent.id === event.id;
 
                             return (
                               <div
@@ -6388,13 +6762,16 @@
                                   border: `2px ${event.type === 'planned' ? 'dashed' : 'solid'} ${baseColor}`,
                                   borderRadius: '6px',
                                   padding: '4px 6px',
-                                  cursor: 'pointer',
+                                  cursor: isSelectMode ? 'pointer' : 'grab',
                                   overflow: 'hidden',
-                                  transition: 'all 0.2s',
-                                  outline: isSelected ? '3px solid #2196f3' : 'none'
+                                  transition: isDragging ? 'none' : 'all 0.2s',
+                                  outline: isSelected ? '3px solid #2196f3' : 'none',
+                                  opacity: isDragging ? 0.3 : 1
                                 }}
+                                onMouseDown={(e) => handleDragStart(e, event, dayIndex)}
                                 onClick={(e) => {
                                   e.stopPropagation();
+                                  if (Date.now() - _drag.lastEndTime < 100) return; // Drag just ended, skip click
                                   if (isSelectMode) {
                                     setSelectedEventIds(prev =>
                                       prev.includes(event.id)
@@ -6417,19 +6794,23 @@
                                       location: event.location || '',
                                       projectId: event.projectId || ''
                                     });
-                                    setEditingEventId(event.id);
+                                    window.__editingEventId = event.id;
                                     setShowEventModal(true);
                                   }
                                 }}
                                 onMouseEnter={e => {
-                                  e.currentTarget.style.transform = 'scale(1.02)';
-                                  e.currentTarget.style.zIndex = '10';
-                                  e.currentTarget.style.boxShadow = `0 4px 12px ${baseColor}40`;
+                                  if (!draggedEvent) {
+                                    e.currentTarget.style.transform = 'scale(1.02)';
+                                    e.currentTarget.style.zIndex = '10';
+                                    e.currentTarget.style.boxShadow = `0 4px 12px ${baseColor}40`;
+                                  }
                                 }}
                                 onMouseLeave={e => {
-                                  e.currentTarget.style.transform = 'scale(1)';
-                                  e.currentTarget.style.zIndex = '1';
-                                  e.currentTarget.style.boxShadow = 'none';
+                                  if (!draggedEvent) {
+                                    e.currentTarget.style.transform = 'scale(1)';
+                                    e.currentTarget.style.zIndex = '1';
+                                    e.currentTarget.style.boxShadow = 'none';
+                                  }
                                 }}
                               >
                                 <div style={{
@@ -6478,6 +6859,9 @@
         const lastDay = new Date(year, month + 1, 0);
         const startingDayOfWeek = firstDay.getDay();
         const daysInMonth = lastDay.getDate();
+        const monthKey = getMonthKey(currentDate);
+        const now = new Date();
+        const isCurrentMonth = month === now.getMonth() && year === now.getFullYear();
 
         const days = [];
         for (let i = 0; i < startingDayOfWeek; i++) {
@@ -6489,7 +6873,6 @@
 
         const getEventsForDay = (day) => {
           if (!day) return [];
-          const date = new Date(year, month, day);
           return events.filter(e => {
             const eventDate = new Date(e.startDateTime);
             return eventDate.getDate() === day &&
@@ -6498,106 +6881,330 @@
           });
         };
 
-        return (
-          <div className="calendar-grid">
-            {/* Select Mode Toggle */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
-              <button
-                className={`select-mode-toggle ${isSelectMode ? 'active' : ''}`}
-                onClick={() => {
-                  setIsSelectMode(!isSelectMode);
-                  if (isSelectMode) setSelectedEventIds([]);
-                }}
-              >
-                {isSelectMode ? '✕ Exit Select' : '☑ Select Mode'}
-              </button>
-            </div>
-            <div className="calendar-header">
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                <div key={day} className="calendar-day-header">{day}</div>
-              ))}
-            </div>
-            <div className="calendar-body">
-              {days.map((day, index) => {
-                const dayEvents = getEventsForDay(day);
-                const isToday = day &&
-                  day === new Date().getDate() &&
-                  month === new Date().getMonth() &&
-                  year === new Date().getFullYear();
+        // Habit tracker helpers
+        const currentHabitData = monthlyHabits[monthKey] || { habits: [] };
 
-                return (
-                  <div
-                    key={index}
-                    className={`calendar-day ${!day ? 'empty' : ''} ${isToday ? 'today' : ''}`}
-                    onClick={() => {
-                      if (day && !isSelectMode) {
-                        const newDate = new Date(year, month, day);
-                        setCurrentDate(newDate);
-                        setView('daily');
-                      }
+        const toggleHabitDay = (habitName, day) => {
+          const updatedHabits = currentHabitData.habits.map(h => {
+            if (h.name !== habitName) return h;
+            const newDays = { ...h.days };
+            newDays[day] = !newDays[day];
+            return { ...h, days: newDays };
+          });
+          setMonthlyHabits({
+            ...monthlyHabits,
+            [monthKey]: { habits: updatedHabits }
+          });
+        };
+
+        // Incomplete reasons data
+        const incompleteData = getMonthlyIncompleteReasons(year, month);
+
+        // Build weeks for habit grid display
+        const weeksInMonth = [];
+        let weekDays = [];
+        // Pad start of first week
+        for (let i = 0; i < startingDayOfWeek; i++) weekDays.push(null);
+        for (let d = 1; d <= daysInMonth; d++) {
+          weekDays.push(d);
+          if (weekDays.length === 7) {
+            weeksInMonth.push(weekDays);
+            weekDays = [];
+          }
+        }
+        if (weekDays.length > 0) {
+          while (weekDays.length < 7) weekDays.push(null);
+          weeksInMonth.push(weekDays);
+        }
+
+        console.log('MonthlyView RENDERING with sidebar - v2');
+
+        return (
+          <div style={{
+            display: 'flex',
+            gap: '16px',
+            minHeight: 0
+          }}>
+            {/* LEFT SIDEBAR */}
+            <div style={{
+              width: '320px',
+              minWidth: '320px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+              overflowY: 'auto',
+              maxHeight: 'calc(100vh - 180px)',
+              border: '3px solid red',
+              background: '#ffe0e0'
+            }}>
+              {/* Habit Tracker Card */}
+              <div style={{
+                background: 'white',
+                borderRadius: '12px',
+                padding: '16px',
+                border: '2px solid #e0e7e0'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <h4 style={{ margin: 0, color: '#2d5a3d', fontSize: '14px', fontWeight: 600 }}>
+                    Habit Tracker
+                  </h4>
+                  <button
+                    onClick={() => setShowHabitModal(true)}
+                    style={{
+                      background: '#e8f5eb',
+                      border: '1px solid #4a7c59',
+                      color: '#2d5a3d',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '11px',
+                      fontWeight: 600
                     }}
                   >
-                    {day && (
-                      <>
-                        <div className="day-number">{day}</div>
-                        <div className="day-events">
-                          {dayEvents.slice(0, 3).map(event => {
-                            const category = categories.find(c => c.id === event.categoryId);
-                            const isSelected = selectedEventIds.includes(event.id);
-                            return (
-                              <div
-                                key={event.id}
-                                className={`event-item ${event.type}${isSelectMode ? ' selectable' : ''}${isSelected ? ' selected' : ''}`}
-                                style={{
-                                  borderLeftColor: category?.color,
-                                  cursor: 'pointer',
-                                  background: isSelected ? `${category?.color || '#4a7c59'}40` : undefined
-                                }}
-                                title={isSelectMode ? 'Click to select' : `${event.title} - ${event.type} (click to edit)`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (isSelectMode) {
-                                    setSelectedEventIds(prev =>
-                                      prev.includes(event.id)
-                                        ? prev.filter(id => id !== event.id)
-                                        : [...prev, event.id]
-                                    );
-                                  } else {
-                                    if (event.type === 'planned') {
-                                      setSelectedEventForCompletion(event);
-                                      setShowCompletionModal(true);
-                                    } else {
-                                      setPrefilledEventData({
-                                        title: event.title,
-                                        startDate: formatDate(new Date(event.startDateTime)),
-                                        startTime: formatTime(new Date(event.startDateTime)),
-                                        endDate: formatDate(new Date(event.endDateTime)),
-                                        endTime: formatTime(new Date(event.endDateTime)),
-                                        categoryId: event.categoryId,
-                                        type: event.type,
-                                        description: event.description || '',
-                                        location: event.location || '',
-                                        projectId: event.projectId || ''
-                                      });
-                                      setEditingEventId(event.id);
-                                      setShowEventModal(true);
-                                    }
-                                  }
-                                }}
-                              >
-                                {event.title}
-                              </div>
-                            );
-                          })}
-                          {dayEvents.length > 3 && (
-                            <div className="more-events">+{dayEvents.length - 3} more</div>
+                    + Manage
+                  </button>
+                </div>
+
+                {currentHabitData.habits.length === 0 && (
+                  <p style={{ color: '#6b9b7a', fontSize: '12px', textAlign: 'center', padding: '12px 0' }}>
+                    No habits tracked this month. Click "+ Manage" to add some!
+                  </p>
+                )}
+
+                {currentHabitData.habits.map(habit => {
+                  const streak = getHabitStreak(habit.name);
+                  const completedCount = Object.values(habit.days || {}).filter(v => v).length;
+                  return (
+                    <div key={habit.name} style={{ marginBottom: '14px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#2d5a3d' }}>{habit.name}</span>
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                          {streak > 0 && (
+                            <span style={{
+                              background: '#fff3e0',
+                              color: '#e65100',
+                              padding: '2px 8px',
+                              borderRadius: '10px',
+                              fontSize: '10px',
+                              fontWeight: 600
+                            }}>{streak} mo streak</span>
                           )}
+                          <span style={{ fontSize: '11px', color: '#6b9b7a' }}>{completedCount}d</span>
                         </div>
-                      </>
-                    )}
-                  </div>
-                );
-              })}
+                      </div>
+                      {/* 7-column day grid */}
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(7, 1fr)',
+                        gap: '2px'
+                      }}>
+                        {['S','M','T','W','T','F','S'].map((d, i) => (
+                          <div key={i} style={{ textAlign: 'center', fontSize: '9px', color: '#6b9b7a', fontWeight: 600, marginBottom: '2px' }}>{d}</div>
+                        ))}
+                        {weeksInMonth.flat().map((day, idx) => {
+                          if (day === null) return <div key={idx} />;
+                          const done = habit.days && habit.days[day];
+                          const isPast = new Date(year, month, day) < new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                          const isFuture = !isPast && !(day === now.getDate() && isCurrentMonth);
+                          const isToday = day === now.getDate() && isCurrentMonth;
+
+                          return (
+                            <div
+                              key={idx}
+                              onClick={() => {
+                                if (!isFuture) toggleHabitDay(habit.name, day);
+                              }}
+                              style={{
+                                width: '100%',
+                                aspectRatio: '1',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                borderRadius: '4px',
+                                fontSize: '10px',
+                                fontWeight: 600,
+                                cursor: isFuture ? 'default' : 'pointer',
+                                background: done ? '#e8f5eb' : (isPast && !done ? '#fee2e2' : (isToday ? '#f5f7f5' : 'transparent')),
+                                color: done ? '#16a34a' : (isPast && !done ? '#dc2626' : '#9ca3af'),
+                                border: isToday ? '1px solid #4a7c59' : '1px solid transparent',
+                                transition: 'all 0.15s'
+                              }}
+                              title={`Day ${day}`}
+                            >
+                              {done ? '\u2713' : (isPast && !done ? '\u2717' : day)}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Incomplete Reasons Card */}
+              <div style={{
+                background: 'white',
+                borderRadius: '12px',
+                padding: '16px',
+                border: '2px solid #e0e7e0'
+              }}>
+                <h4 style={{ margin: '0 0 12px 0', color: '#2d5a3d', fontSize: '14px', fontWeight: 600 }}>
+                  Incomplete Reasons
+                </h4>
+
+                {incompleteData.totalIncomplete === 0 && (
+                  <p style={{ color: '#6b9b7a', fontSize: '12px', textAlign: 'center', padding: '12px 0' }}>
+                    No incomplete events this month.
+                  </p>
+                )}
+
+                {incompleteData.totalIncomplete > 0 && (
+                  <>
+                    <div style={{
+                      background: '#fff3e0',
+                      border: '1px solid #ffe0b2',
+                      borderRadius: '8px',
+                      padding: '10px 12px',
+                      marginBottom: '12px'
+                    }}>
+                      <div style={{ fontSize: '11px', color: '#e65100', fontWeight: 600, marginBottom: '2px' }}>
+                        #1 Most Frequent
+                      </div>
+                      <div style={{ fontSize: '14px', color: '#bf360c', fontWeight: 700 }}>
+                        {incompleteData.reasons[0].reason} ({incompleteData.reasons[0].count}x)
+                      </div>
+                    </div>
+
+                    {incompleteData.reasons.slice(1).map(({ reason, count }) => (
+                      <div key={reason} style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        padding: '6px 0',
+                        borderBottom: '1px solid #f0f0f0',
+                        fontSize: '12px'
+                      }}>
+                        <span style={{ color: '#2d5a3d' }}>{reason}</span>
+                        <span style={{ color: '#6b9b7a', fontWeight: 600 }}>{count}x</span>
+                      </div>
+                    ))}
+
+                    <div style={{
+                      marginTop: '12px',
+                      padding: '8px 12px',
+                      background: '#f5f7f5',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      color: '#6b9b7a',
+                      textAlign: 'center'
+                    }}>
+                      Total incomplete: {incompleteData.totalIncomplete} events
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* RIGHT: Calendar Grid */}
+            <div className="calendar-grid" style={{ flex: 1, minWidth: 0 }}>
+              {/* Select Mode Toggle */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+                <button
+                  className={`select-mode-toggle ${isSelectMode ? 'active' : ''}`}
+                  onClick={() => {
+                    setIsSelectMode(!isSelectMode);
+                    if (isSelectMode) setSelectedEventIds([]);
+                  }}
+                >
+                  {isSelectMode ? '\u2715 Exit Select' : '\u2611 Select Mode'}
+                </button>
+              </div>
+              <div className="calendar-header">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                  <div key={day} className="calendar-day-header">{day}</div>
+                ))}
+              </div>
+              <div className="calendar-body">
+                {days.map((day, index) => {
+                  const dayEvents = getEventsForDay(day);
+                  const isToday = day &&
+                    day === new Date().getDate() &&
+                    month === new Date().getMonth() &&
+                    year === new Date().getFullYear();
+
+                  return (
+                    <div
+                      key={index}
+                      className={`calendar-day ${!day ? 'empty' : ''} ${isToday ? 'today' : ''}`}
+                      onClick={() => {
+                        if (day && !isSelectMode) {
+                          const newDate = new Date(year, month, day);
+                          setCurrentDate(newDate);
+                          setView('daily');
+                        }
+                      }}
+                    >
+                      {day && (
+                        <>
+                          <div className="day-number">{day}</div>
+                          <div className="day-events">
+                            {dayEvents.slice(0, 3).map(event => {
+                              const category = categories.find(c => c.id === event.categoryId);
+                              const isSelected = selectedEventIds.includes(event.id);
+                              return (
+                                <div
+                                  key={event.id}
+                                  className={`event-item ${event.type}${isSelectMode ? ' selectable' : ''}${isSelected ? ' selected' : ''}`}
+                                  style={{
+                                    borderLeftColor: category?.color,
+                                    cursor: 'pointer',
+                                    background: isSelected ? `${category?.color || '#4a7c59'}40` : undefined
+                                  }}
+                                  title={isSelectMode ? 'Click to select' : `${event.title} - ${event.type} (click to edit)`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (isSelectMode) {
+                                      setSelectedEventIds(prev =>
+                                        prev.includes(event.id)
+                                          ? prev.filter(id => id !== event.id)
+                                          : [...prev, event.id]
+                                      );
+                                    } else {
+                                      if (event.type === 'planned') {
+                                        setSelectedEventForCompletion(event);
+                                        setShowCompletionModal(true);
+                                      } else {
+                                        setPrefilledEventData({
+                                          title: event.title,
+                                          startDate: formatDate(new Date(event.startDateTime)),
+                                          startTime: formatTime(new Date(event.startDateTime)),
+                                          endDate: formatDate(new Date(event.endDateTime)),
+                                          endTime: formatTime(new Date(event.endDateTime)),
+                                          categoryId: event.categoryId,
+                                          type: event.type,
+                                          description: event.description || '',
+                                          location: event.location || '',
+                                          projectId: event.projectId || ''
+                                        });
+                                        window.__editingEventId = event.id;
+                                        setShowEventModal(true);
+                                      }
+                                    }
+                                  }}
+                                >
+                                  {event.title}
+                                </div>
+                              );
+                            })}
+                            {dayEvents.length > 3 && (
+                              <div className="more-events">+{dayEvents.length - 3} more</div>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         );
@@ -7385,8 +7992,19 @@
           }}>
             {/* Left: 12-month calendar grid */}
             <div>
-              <h3 style={{ color: '#2d5a3d', marginBottom: '16px' }}>
+              <h3 style={{ color: '#2d5a3d', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                 {year} Calendar
+                {year === new Date().getFullYear() && (
+                  <span style={{
+                    background: '#e8f5eb',
+                    color: '#2d5a3d',
+                    padding: '4px 12px',
+                    borderRadius: '20px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    border: '1px solid #4a7c59'
+                  }}>Week {getWeekNumber(new Date())}</span>
+                )}
               </h3>
               <div style={{
                 display: 'grid',
@@ -7573,7 +8191,7 @@
                   </div>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button
-                      onClick={() => isSafeUrl(journalDocUrl) ? window.open(journalDocUrl, '_blank', 'noopener,noreferrer') : alert('Invalid URL')}
+                      onClick={() => window.open(journalDocUrl, '_blank')}
                       style={{
                         background: 'linear-gradient(135deg, #4a7c59 0%, #3d6b4a 100%)',
                         color: 'white',
@@ -7790,20 +8408,15 @@
                     Year
                   </button>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <p style={{
-                    fontSize: '17px',
-                    color: '#2d5a3d',
-                    fontWeight: '700',
-                    fontStyle: 'italic',
-                    margin: 0
-                  }}>
-                    I choose to grow with time, like a tree 🌲
-                  </p>
-                  <p style={{ fontSize: '11px', color: '#9bb3a0', margin: '2px 0 0 0' }}>
-                    developed by Rong.L.Xu
-                  </p>
-                </div>
+                <p style={{ 
+                  fontSize: '17px', 
+                  color: '#2d5a3d', 
+                  fontWeight: '700',
+                  fontStyle: 'italic',
+                  margin: 0
+                }}>
+                  🌲 I choose to grow with time, like a tree — Lexi R.Xu
+                </p>
               </div>
             </div>
 
@@ -7892,7 +8505,7 @@
               {view === 'timeline' && `Project Timeline ${currentDate.getFullYear()}`}
               {view === 'yearly' && currentDate.getFullYear()}
               {view === 'monthly' && currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-              {view === 'weekly' && `Week of ${currentDate.toLocaleDateString()}`}
+              {view === 'weekly' && `Week ${getWeekNumber(currentDate)} - ${currentDate.toLocaleDateString()}`}
               {view === 'daily' && currentDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
             </h2>
             {view !== 'timeline' && (
@@ -7947,6 +8560,7 @@
           {showGoogleSetupModal && <GoogleSetupModal />}
           {showJournalModal && <JournalModal />}
           {showWeeklyReflectionModal && <WeeklyReflectionModal />}
+          {showHabitModal && <HabitModal />}
 
           {/* Floating Action Bar for batch operations */}
           {isSelectMode && selectedEventIds.length > 0 && (
@@ -8100,7 +8714,7 @@
                       if (recurringDeleteContext.source === 'single') {
                         setShowEventModal(false);
                         setPrefilledEventData(null);
-                        setEditingEventId(null);
+                        window.__editingEventId = null;
                       }
                     }}
                     style={{ width: '100%', justifyContent: 'center' }}
@@ -8133,7 +8747,7 @@
                       if (recurringDeleteContext.source === 'single') {
                         setShowEventModal(false);
                         setPrefilledEventData(null);
-                        setEditingEventId(null);
+                        window.__editingEventId = null;
                       }
                     }}
                     style={{
