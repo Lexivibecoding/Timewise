@@ -3331,19 +3331,26 @@
         const [notFullyCompletedReason, setNotFullyCompletedReason] = useState('');
         const [incompleteReason, setIncompleteReason] = useState('');
         const [actualEventTitle, setActualEventTitle] = useState('');
-        const [actualStartTime, setActualStartTime] = useState('');
-        const [actualEndTime, setActualEndTime] = useState('');
+        const [actualStartTime, setActualStartTime] = useState(
+          selectedEventForCompletion ? formatTime(new Date(selectedEventForCompletion.startDateTime)) : ''
+        );
+        const [actualEndTime, setActualEndTime] = useState(
+          selectedEventForCompletion ? formatTime(new Date(selectedEventForCompletion.endDateTime)) : ''
+        );
 
         if (!selectedEventForCompletion) return null;
 
         const event = selectedEventForCompletion;
         const category = categories.find(c => c.id === event.categoryId);
+        const disruptionCat = categories.find(c => c.name.toLowerCase() === 'disruption');
+        const [actualCategoryId, setActualCategoryId] = useState(disruptionCat ? disruptionCat.id : event.categoryId);
+        const [actualProjectId, setActualProjectId] = useState('');
 
         const handleComplete = () => {
           const actualEvent = {
             id: Date.now().toString(),
-            categoryId: event.categoryId,
-            projectId: event.projectId,
+            categoryId: completionType === 'incomplete' ? actualCategoryId : event.categoryId,
+            projectId: completionType === 'incomplete' ? actualProjectId : event.projectId,
             type: 'actual',
             description: event.description,
             location: event.location,
@@ -3633,6 +3640,25 @@
                       onChange={e => setActualEventTitle(e.target.value)}
                       placeholder="Actual activity during this time"
                     />
+                  </div>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Category</label>
+                      <select value={actualCategoryId} onChange={e => setActualCategoryId(e.target.value)}>
+                        {categories.map(cat => (
+                          <option key={cat.id} value={cat.id}>{cat.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Related Project</label>
+                      <select value={actualProjectId} onChange={e => setActualProjectId(e.target.value)}>
+                        <option value="">None</option>
+                        {yearlyProjects.map(proj => (
+                          <option key={proj.id} value={proj.id}>{proj.name}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                   <div className="form-row">
                     <div className="form-group">
@@ -6274,14 +6300,22 @@
         // Time slots for the week view (6am to 10pm)
         const hours = Array.from({ length: 17 }, (_, i) => i + 6);
 
+        // Dynamic hour height to fit viewport without scrolling
+        const [hourHeight, setHourHeight] = React.useState(Math.max(Math.floor((window.innerHeight - 280) / 17), 25));
+        React.useEffect(() => {
+          const update = () => setHourHeight(Math.max(Math.floor((window.innerHeight - 280) / 17), 25));
+          window.addEventListener('resize', update);
+          return () => window.removeEventListener('resize', update);
+        }, []);
+
         // Calculate event position for timeline
         const getEventPosition = (event) => {
           const start = new Date(event.startDateTime);
           const end = new Date(event.endDateTime);
           const startHour = start.getHours() + start.getMinutes() / 60;
           const endHour = end.getHours() + end.getMinutes() / 60;
-          const top = ((startHour - 6) * 60);
-          const height = ((endHour - startHour) * 60);
+          const top = ((startHour - 6) * hourHeight);
+          const height = ((endHour - startHour) * hourHeight);
           return {
             position: 'absolute',
             top: `${top}px`,
@@ -6499,13 +6533,13 @@
                 </div>
 
                 {/* Timeline Grid */}
-                <div id="weekly-scroll" style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
+                <div id="weekly-scroll" style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
                   <div id="weekly-grid" style={{ display: 'grid', gridTemplateColumns: '60px repeat(7, 1fr)', position: 'relative' }}>
                     {/* Time Labels */}
                     <div style={{ position: 'sticky', left: 0, zIndex: 2, background: 'white' }}>
                       {hours.map(hour => (
-                        <div key={hour} style={{ height: '60px', padding: '8px', fontSize: '12px', color: '#6b9b7a', borderBottom: '1px solid #f0f0f0', textAlign: 'right', paddingRight: '8px' }}>
-                          {hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`}
+                        <div key={hour} style={{ height: hourHeight + 'px', padding: '4px 8px', fontSize: '11px', color: '#6b9b7a', borderBottom: '1px solid #f0f0f0', textAlign: 'right', paddingRight: '8px', display: 'flex', alignItems: 'flex-start' }}>
+                          <span>{hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`}</span>
                         </div>
                       ))}
                     </div>
@@ -6521,7 +6555,7 @@
                           {hours.map(hour => (
                             <div
                               key={hour}
-                              style={{ height: '60px', borderBottom: '1px solid #f0f0f0', cursor: isSelectMode ? 'default' : 'pointer' }}
+                              style={{ height: hourHeight + 'px', borderBottom: '1px solid #f0f0f0', cursor: isSelectMode ? 'default' : 'pointer' }}
                               onClick={() => {
                                 if (!isSelectMode) {
                                   const h = hour.toString().padStart(2, '0');
