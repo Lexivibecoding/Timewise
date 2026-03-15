@@ -7087,17 +7087,16 @@
         };
         
         return (
-          <div style={{ 
-            padding: '30px 20px', 
-            maxWidth: '1400px', 
-            margin: '0 auto',
-            minHeight: '100vh'
+          <div style={{
+            padding: '15px 20px',
+            maxWidth: '1400px',
+            margin: '0 auto'
           }}>
             {/* Beautiful Header Banner */}
             <div style={{ 
-              textAlign: 'center', 
-              marginBottom: '50px',
-              padding: '50px 40px',
+              textAlign: 'center',
+              marginBottom: '16px',
+              padding: '20px 30px',
               background: 'linear-gradient(135deg, #2d5a3d 0%, #4a7c59 50%, #6b9b7a 100%)',
               borderRadius: '20px',
               boxShadow: '0 10px 40px rgba(74, 124, 89, 0.3)',
@@ -7127,18 +7126,18 @@
               }} />
               
               <div style={{ position: 'relative', zIndex: 1 }}>
-                <h2 style={{ 
-                  fontSize: '42px', 
-                  color: 'white', 
-                  marginBottom: '16px',
+                <h2 style={{
+                  fontSize: '28px',
+                  color: 'white',
+                  marginBottom: '8px',
                   fontWeight: '700',
                   textShadow: '0 2px 10px rgba(0,0,0,0.2)',
                   letterSpacing: '-0.5px'
                 }}>
                   📊 Project Timeline {currentYear}
                 </h2>
-                <p style={{ 
-                  fontSize: '18px', 
+                <p style={{
+                  fontSize: '14px',
                   color: 'rgba(255, 255, 255, 0.95)',
                   fontWeight: '400',
                   marginBottom: '0',
@@ -7197,10 +7196,10 @@
             </div>
             
             {yearlyProjects.length > 0 && (
-              <div style={{ 
-                background: 'white', 
-                borderRadius: '20px', 
-                padding: '40px',
+              <div style={{
+                background: 'white',
+                borderRadius: '20px',
+                padding: '20px',
                 boxShadow: '0 10px 40px rgba(0,0,0,0.08)',
                 border: '1px solid rgba(107, 155, 122, 0.1)'
               }}>
@@ -7208,9 +7207,9 @@
                 <div style={{ 
                   display: 'grid',
                   gridTemplateColumns: '280px 1fr 200px',
-                  gap: '30px',
-                  marginBottom: '30px',
-                  paddingBottom: '20px',
+                  gap: '20px',
+                  marginBottom: '15px',
+                  paddingBottom: '10px',
                   borderBottom: '3px solid #e8f5eb'
                 }}>
                   <div style={{ 
@@ -7260,8 +7259,8 @@
                 <div style={{ 
                   display: 'grid',
                   gridTemplateColumns: '280px 1fr 200px',
-                  gap: '30px',
-                  marginBottom: '10px'
+                  gap: '20px',
+                  marginBottom: '8px'
                 }}>
                   <div></div>
                   <div style={{ position: 'relative', height: '24px' }}>
@@ -7310,9 +7309,9 @@
                       style={{
                         display: 'grid',
                         gridTemplateColumns: '280px 1fr 200px',
-                        gap: '30px',
-                        marginBottom: '30px',
-                        padding: '24px',
+                        gap: '20px',
+                        marginBottom: '12px',
+                        padding: '14px',
                         background: isHovered 
                           ? 'linear-gradient(135deg, #f0f9f4 0%, #ffffff 100%)'
                           : 'linear-gradient(135deg, #fafbfc 0%, #ffffff 100%)',
@@ -7322,7 +7321,7 @@
                           ? '0 12px 40px rgba(74, 124, 89, 0.15)' 
                           : '0 4px 15px rgba(0,0,0,0.04)',
                         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                        transform: isHovered ? 'translateY(-4px) scale(1.01)' : 'translateY(0) scale(1)',
+                        transform: isHovered ? 'translateY(-2px) scale(1.005)' : 'translateY(0) scale(1)',
                         cursor: 'pointer'
                       }}
                     >
@@ -7333,10 +7332,10 @@
                         justifyContent: 'center'
                       }}>
                         <div style={{ 
-                          fontSize: '18px', 
-                          fontWeight: '700', 
+                          fontSize: '16px',
+                          fontWeight: '700',
                           color: '#2d5a3d',
-                          marginBottom: '12px',
+                          marginBottom: '6px',
                           display: 'flex',
                           alignItems: 'center',
                           gap: '8px'
@@ -7400,10 +7399,10 @@
                       {/* Enhanced Timeline bar */}
                       <div style={{ 
                         position: 'relative',
-                        height: '60px',
+                        height: '44px',
                         display: 'flex',
                         alignItems: 'center',
-                        padding: '5px 0'
+                        padding: '2px 0'
                       }}>
                         {/* Background timeline with subtle pattern */}
                         <div style={{
@@ -7547,7 +7546,7 @@
                         flexDirection: 'column',
                         justifyContent: 'center',
                         alignItems: 'center',
-                        padding: '16px',
+                        padding: '10px',
                         background: progress && progress.percentage >= 100 
                           ? 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)'
                           : progress && progress.percentage >= 75 
@@ -7565,7 +7564,7 @@
                         transition: 'all 0.3s ease'
                       }}>
                         <div style={{ 
-                          fontSize: '32px', 
+                          fontSize: '24px',
                           fontWeight: '800',
                           background: progress && progress.percentage >= 100 
                             ? 'linear-gradient(135deg, #2e7d32 0%, #4caf50 100%)'
@@ -7612,9 +7611,9 @@
             
             {/* Enhanced Action buttons */}
             <div style={{
-              marginTop: '40px',
+              marginTop: '16px',
               display: 'flex',
-              gap: '16px',
+              gap: '12px',
               justifyContent: 'center',
               flexWrap: 'wrap'
             }}>
@@ -7624,14 +7623,14 @@
                   background: 'linear-gradient(135deg, #4a7c59 0%, #3d6b4a 100%)',
                   color: 'white',
                   border: 'none',
-                  padding: '14px 32px',
-                  borderRadius: '12px',
+                  padding: '10px 24px',
+                  borderRadius: '10px',
                   cursor: 'pointer',
-                  fontSize: '15px',
+                  fontSize: '14px',
                   fontWeight: '600',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '10px',
+                  gap: '8px',
                   boxShadow: '0 6px 20px rgba(74, 124, 89, 0.3)',
                   transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                   transform: 'translateY(0)'
@@ -7654,14 +7653,14 @@
                   background: 'white',
                   color: '#4a7c59',
                   border: '2px solid #4a7c59',
-                  padding: '14px 32px',
-                  borderRadius: '12px',
+                  padding: '10px 24px',
+                  borderRadius: '10px',
                   cursor: 'pointer',
-                  fontSize: '15px',
+                  fontSize: '14px',
                   fontWeight: '600',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '10px',
+                  gap: '8px',
                   boxShadow: '0 4px 15px rgba(0,0,0,0.08)',
                   transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                   transform: 'translateY(0)'
