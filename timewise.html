@@ -6392,11 +6392,117 @@
               </div>
             </div>
 
-            {/* TIMELINE - Full Width */}
+            {/* Main Content: Left Sidebar + Right Timeline */}
             <div style={{
+              display: 'grid',
+              gridTemplateColumns: '320px 1fr',
+              gap: '16px',
               flex: 1,
               minHeight: 0
             }}>
+              {/* LEFT SIDEBAR */}
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+                overflowY: 'auto'
+              }}>
+                {/* Weekly Reflection */}
+                <div style={{
+                  background: 'linear-gradient(135deg, #f0f9f4 0%, #e0f0e8 100%)',
+                  borderRadius: '12px',
+                  padding: '20px',
+                  border: '2px solid #4a7c59'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: '16px'
+                  }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#2d5a3d', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span>✨</span><span>Week's Focus</span>
+                    </h3>
+                    <button onClick={() => setShowWeeklyReflectionModal(true)} style={{ background: 'white', color: '#4a7c59', border: '2px solid #4a7c59', padding: '4px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>
+                      {hasReflection ? 'Edit' : 'Add'}
+                    </button>
+                  </div>
+
+                  {hasReflection ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {weekData.goal && (
+                        <div style={{ background: 'white', padding: '12px', borderRadius: '8px', borderLeft: '4px solid #2196f3' }}>
+                          <div style={{ fontSize: '12px', color: '#1565c0', marginBottom: '4px', fontWeight: '600' }}>🎯 GOAL</div>
+                          <div style={{ fontSize: '13px', color: '#2d5a3d' }}>{weekData.goal}</div>
+                        </div>
+                      )}
+                      {weekData.highlight && (
+                        <div style={{ background: 'white', padding: '12px', borderRadius: '8px', borderLeft: '4px solid #4caf50' }}>
+                          <div style={{ fontSize: '12px', color: '#2e7d32', marginBottom: '4px', fontWeight: '600' }}>⭐ HIGHLIGHT</div>
+                          <div style={{ fontSize: '13px', color: '#2d5a3d' }}>{weekData.highlight}</div>
+                        </div>
+                      )}
+                      {weekData.lowlight && (
+                        <div style={{ background: 'white', padding: '12px', borderRadius: '8px', borderLeft: '4px solid #ff9800' }}>
+                          <div style={{ fontSize: '12px', color: '#e65100', marginBottom: '4px', fontWeight: '600' }}>📉 CHALLENGE</div>
+                          <div style={{ fontSize: '13px', color: '#2d5a3d' }}>{weekData.lowlight}</div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p style={{ fontSize: '13px', color: '#6b9b7a', margin: 0, textAlign: 'center', padding: '16px 0' }}>
+                      No reflection yet. Click "Add" to set your focus for this week.
+                    </p>
+                  )}
+                </div>
+
+                {/* Week Statistics */}
+                <div style={{ background: 'white', borderRadius: '12px', padding: '20px', border: '2px solid #e0e7e0' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#2d5a3d', margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>📊</span><span>This Week</span>
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ background: '#f5f7f5', padding: '12px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '13px', color: '#6b9b7a' }}>Hours Tracked</span>
+                      <span style={{ fontSize: '18px', fontWeight: '700', color: '#4a7c59' }}>{comparison.thisWeek.toFixed(1)}h</span>
+                    </div>
+                    <div style={{ background: '#f5f7f5', padding: '12px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '13px', color: '#6b9b7a' }}>Last Week</span>
+                      <span style={{ fontSize: '18px', fontWeight: '700', color: '#9e9e9e' }}>{comparison.lastWeek.toFixed(1)}h</span>
+                    </div>
+                    {comparison.lastWeek > 0 && (
+                      <div style={{ background: comparison.improved ? '#e8f5e9' : '#fff3e0', padding: '12px', borderRadius: '8px', textAlign: 'center', border: `2px solid ${comparison.improved ? '#4caf50' : '#ff9800'}` }}>
+                        <div style={{ fontSize: '20px', fontWeight: '700', color: comparison.improved ? '#2e7d32' : '#e65100', marginBottom: '4px' }}>
+                          {comparison.improved ? '↑' : '↓'} {Math.abs(comparison.change).toFixed(0)}%
+                        </div>
+                        <div style={{ fontSize: '12px', color: comparison.improved ? '#2e7d32' : '#e65100' }}>
+                          {comparison.improved ? '🎉 Great progress!' : '💪 Room to improve!'}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Quick Actions */}
+                <div style={{ background: 'white', borderRadius: '12px', padding: '20px', border: '2px solid #e0e7e0' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#2d5a3d', margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>⚡</span><span>Quick Actions</span>
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <button onClick={() => setShowEventModal(true)} style={{ background: 'linear-gradient(135deg, #4a7c59 0%, #3d6549 100%)', color: 'white', border: 'none', padding: '12px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '600', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s' }} onMouseEnter={e => e.target.style.transform = 'translateY(-2px)'} onMouseLeave={e => e.target.style.transform = 'translateY(0)'}>
+                      <span>➕</span><span>Add Event</span>
+                    </button>
+                    <button onClick={() => setShowWeeklyReflectionModal(true)} style={{ background: 'white', color: '#4a7c59', border: '2px solid #4a7c59', padding: '12px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '600', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s' }} onMouseEnter={e => e.target.style.background = '#e8f5eb'} onMouseLeave={e => e.target.style.background = 'white'}>
+                      <span>✨</span><span>Update Reflection</span>
+                    </button>
+                    <button onClick={() => setShowSyncModal(true)} style={{ background: 'white', color: '#4a7c59', border: '2px solid #4a7c59', padding: '12px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '600', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s' }} onMouseEnter={e => e.target.style.background = '#e8f5eb'} onMouseLeave={e => e.target.style.background = 'white'}>
+                      <span>🔄</span><span>Sync Calendar</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* RIGHT TIMELINE */}
               <div style={{
                 background: 'white',
                 borderRadius: '12px',
@@ -8212,9 +8318,9 @@
                     Year
                   </button>
                 </div>
-                <p style={{
-                  fontSize: '17px',
-                  color: '#2d5a3d',
+                <p style={{ 
+                  fontSize: '17px', 
+                  color: '#2d5a3d', 
                   fontWeight: '700',
                   fontStyle: 'italic',
                   margin: 0
@@ -8223,79 +8329,6 @@
                 </p>
               </div>
             </div>
-
-            {view === 'weekly' && (() => {
-              const weekData = getCurrentWeekData();
-              const hasReflection = weekData.goal || weekData.highlight || weekData.lowlight;
-              const comparison = getWeekComparison();
-              return (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  {/* Week's Focus compact */}
-                  <div style={{
-                    background: '#f0f9f4',
-                    border: '1px solid #4a7c59',
-                    borderRadius: '8px',
-                    padding: '6px 12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    maxWidth: '280px'
-                  }}>
-                    <span style={{ fontSize: '13px' }}>✨</span>
-                    <span style={{
-                      fontSize: '12px',
-                      color: hasReflection ? '#2d5a3d' : '#6b9b7a',
-                      fontWeight: '500',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap'
-                    }}>
-                      {weekData.goal || 'No focus set'}
-                    </span>
-                    <button onClick={() => setShowWeeklyReflectionModal(true)} style={{
-                      background: 'white',
-                      color: '#4a7c59',
-                      border: '1px solid #4a7c59',
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontSize: '11px',
-                      fontWeight: '600',
-                      flexShrink: 0
-                    }}>
-                      {hasReflection ? 'Edit' : 'Add'}
-                    </button>
-                  </div>
-                  {/* This Week compact */}
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    background: '#f5f7f5',
-                    border: '1px solid #e0e7e0',
-                    borderRadius: '8px',
-                    padding: '6px 12px'
-                  }}>
-                    <span style={{ fontSize: '13px' }}>📊</span>
-                    <span style={{ fontSize: '13px', fontWeight: '700', color: '#4a7c59' }}>
-                      {comparison.thisWeek.toFixed(1)}h
-                    </span>
-                    {comparison.lastWeek > 0 && (
-                      <span style={{
-                        fontSize: '12px',
-                        fontWeight: '600',
-                        color: comparison.improved ? '#2e7d32' : '#e65100',
-                        background: comparison.improved ? '#e8f5e9' : '#fff3e0',
-                        padding: '1px 6px',
-                        borderRadius: '4px'
-                      }}>
-                        {comparison.improved ? '↑' : '↓'}{Math.abs(comparison.change).toFixed(0)}%
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })()}
 
             <div className="header-right">
               {/* Tracking Streak */}
