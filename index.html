@@ -485,7 +485,7 @@
 
     .analytics-panel {
       background: white;
-      padding: 32px;
+      padding: 20px;
       border-radius: 12px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     }
@@ -494,7 +494,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 32px;
+      margin-bottom: 20px;
     }
 
     .analytics-header select {
@@ -5781,14 +5781,14 @@
               <div style={{
                 background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)',
                 border: '2px solid #2196f3',
-                borderRadius: '12px',
-                padding: '16px',
-                marginBottom: '20px',
+                borderRadius: '10px',
+                padding: '10px 14px',
+                marginBottom: '10px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '12px'
+                gap: '10px'
               }}>
-                <span style={{ fontSize: '32px' }}>📅</span>
+                <span style={{ fontSize: '24px' }}>📅</span>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: '15px', fontWeight: '600', color: '#1565c0', marginBottom: '4px' }}>
                     Sunday Planning Time!
@@ -5805,14 +5805,14 @@
               <div style={{
                 background: 'linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%)',
                 border: '2px solid #9c27b0',
-                borderRadius: '12px',
-                padding: '16px',
-                marginBottom: '20px',
+                borderRadius: '10px',
+                padding: '10px 14px',
+                marginBottom: '10px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '12px'
+                gap: '10px'
               }}>
-                <span style={{ fontSize: '32px' }}>✨</span>
+                <span style={{ fontSize: '24px' }}>✨</span>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: '15px', fontWeight: '600', color: '#6a1b9a', marginBottom: '4px' }}>
                     Friday Reflection Time!
@@ -5845,15 +5845,15 @@
             {/* Daily Progress Card */}
             <div style={{
               background: 'linear-gradient(135deg, #f0f9f4 0%, #e0f0e8 100%)',
-              borderRadius: '12px',
-              padding: '20px',
-              marginBottom: '20px',
+              borderRadius: '10px',
+              padding: '12px 16px',
+              marginBottom: '12px',
               border: '2px solid #4a7c59'
             }}>
-              <h3 style={{ 
-                fontSize: '18px', 
-                color: '#2d5a3d', 
-                marginBottom: '16px',
+              <h3 style={{
+                fontSize: '16px',
+                color: '#2d5a3d',
+                marginBottom: '10px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px'
@@ -6432,19 +6432,19 @@
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                       {weekData.goal && (
                         <div style={{ background: 'white', padding: '12px', borderRadius: '8px', borderLeft: '4px solid #2196f3' }}>
-                          <div style={{ fontSize: '11px', color: '#1565c0', marginBottom: '4px', fontWeight: '600' }}>🎯 GOAL</div>
+                          <div style={{ fontSize: '12px', color: '#1565c0', marginBottom: '4px', fontWeight: '600' }}>🎯 GOAL</div>
                           <div style={{ fontSize: '13px', color: '#2d5a3d' }}>{weekData.goal}</div>
                         </div>
                       )}
                       {weekData.highlight && (
                         <div style={{ background: 'white', padding: '12px', borderRadius: '8px', borderLeft: '4px solid #4caf50' }}>
-                          <div style={{ fontSize: '11px', color: '#2e7d32', marginBottom: '4px', fontWeight: '600' }}>⭐ HIGHLIGHT</div>
+                          <div style={{ fontSize: '12px', color: '#2e7d32', marginBottom: '4px', fontWeight: '600' }}>⭐ HIGHLIGHT</div>
                           <div style={{ fontSize: '13px', color: '#2d5a3d' }}>{weekData.highlight}</div>
                         </div>
                       )}
                       {weekData.lowlight && (
                         <div style={{ background: 'white', padding: '12px', borderRadius: '8px', borderLeft: '4px solid #ff9800' }}>
-                          <div style={{ fontSize: '11px', color: '#e65100', marginBottom: '4px', fontWeight: '600' }}>📉 CHALLENGE</div>
+                          <div style={{ fontSize: '12px', color: '#e65100', marginBottom: '4px', fontWeight: '600' }}>📉 CHALLENGE</div>
                           <div style={{ fontSize: '13px', color: '#2d5a3d' }}>{weekData.lowlight}</div>
                         </div>
                       )}
@@ -6518,15 +6518,15 @@
                   borderBottom: '2px solid #e0e7e0',
                   background: '#f5f7f5'
                 }}>
-                  <div style={{ padding: '12px' }}></div>
+                  <div style={{ padding: '6px' }}></div>
                   {weekDates.map((date, index) => {
                     const isToday = date.toDateString() === new Date().toDateString();
                     const dayName = date.toLocaleDateString('default', { weekday: 'short' });
                     const dayNum = date.getDate();
                     return (
-                      <div key={index} style={{ padding: '12px', textAlign: 'center', borderLeft: index > 0 ? '1px solid #e0e7e0' : 'none', background: isToday ? '#e8f5eb' : 'transparent', cursor: 'pointer' }} onClick={() => { setCurrentDate(date); setView('daily'); }}>
+                      <div key={index} style={{ padding: '6px', textAlign: 'center', borderLeft: index > 0 ? '1px solid #e0e7e0' : 'none', background: isToday ? '#e8f5eb' : 'transparent', cursor: 'pointer' }} onClick={() => { setCurrentDate(date); setView('daily'); }}>
                         <div style={{ fontSize: '12px', color: isToday ? '#2d5a3d' : '#6b9b7a', fontWeight: isToday ? '700' : '600' }}>{dayName}</div>
-                        <div style={{ fontSize: '18px', color: '#2d5a3d', fontWeight: isToday ? '700' : '500', marginTop: '4px' }}>{dayNum}</div>
+                        <div style={{ fontSize: '15px', color: '#2d5a3d', fontWeight: isToday ? '700' : '500', marginTop: '2px' }}>{dayNum}</div>
                       </div>
                     );
                   })}
@@ -6538,7 +6538,7 @@
                     {/* Time Labels */}
                     <div style={{ position: 'sticky', left: 0, zIndex: 2, background: 'white' }}>
                       {hours.map(hour => (
-                        <div key={hour} style={{ height: hourHeight + 'px', padding: '4px 8px', fontSize: '11px', color: '#6b9b7a', borderBottom: '1px solid #f0f0f0', textAlign: 'right', paddingRight: '8px', display: 'flex', alignItems: 'flex-start' }}>
+                        <div key={hour} style={{ height: hourHeight + 'px', padding: '4px 8px', fontSize: '12px', color: '#6b9b7a', borderBottom: '1px solid #f0f0f0', textAlign: 'right', paddingRight: '8px', display: 'flex', alignItems: 'flex-start' }}>
                           <span>{hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`}</span>
                         </div>
                       ))}
@@ -6647,7 +6647,7 @@
                                 }}
                               >
                                 <div style={{
-                                  fontSize: '11px',
+                                  fontSize: '12px',
                                   fontWeight: '600',
                                   color: event.type === 'planned' ? '#2d5a3d' : 'white',
                                   marginBottom: '2px',
@@ -6662,7 +6662,7 @@
                                   {event.completionStatus === 'incomplete' && ' ❌'}
                                 </div>
                                 <div style={{
-                                  fontSize: '10px',
+                                  fontSize: '11px',
                                   color: event.type === 'planned' ? '#6b9b7a' : 'rgba(255,255,255,0.9)',
                                   overflow: 'hidden',
                                   textOverflow: 'ellipsis',
@@ -6786,7 +6786,7 @@
                       padding: '4px 10px',
                       borderRadius: '6px',
                       cursor: 'pointer',
-                      fontSize: '11px',
+                      fontSize: '12px',
                       fontWeight: 600
                     }}
                   >
@@ -6818,7 +6818,7 @@
                               fontWeight: 600
                             }}>{streak} mo streak</span>
                           )}
-                          <span style={{ fontSize: '11px', color: '#6b9b7a' }}>{completedCount}d</span>
+                          <span style={{ fontSize: '12px', color: '#6b9b7a' }}>{completedCount}d</span>
                         </div>
                       </div>
                       {/* 7-column day grid */}
@@ -6896,7 +6896,7 @@
                       padding: '10px 12px',
                       marginBottom: '12px'
                     }}>
-                      <div style={{ fontSize: '11px', color: '#e65100', fontWeight: 600, marginBottom: '2px' }}>
+                      <div style={{ fontSize: '12px', color: '#e65100', fontWeight: 600, marginBottom: '2px' }}>
                         #1 Most Frequent
                       </div>
                       <div style={{ fontSize: '14px', color: '#bf360c', fontWeight: 700 }}>
@@ -7493,7 +7493,7 @@
                             padding: '2px 8px',
                             background: 'linear-gradient(135deg, #1b5e20 0%, #2e7d32 100%)',
                             color: 'white',
-                            fontSize: '10px',
+                            fontSize: '11px',
                             fontWeight: '700',
                             whiteSpace: 'nowrap',
                             borderRadius: '4px',
@@ -7529,7 +7529,7 @@
                               ? 'linear-gradient(135deg, #c62828 0%, #f44336 100%)'
                               : 'linear-gradient(135deg, #2e7d32 0%, #4caf50 100%)',
                             color: 'white',
-                            fontSize: '10px',
+                            fontSize: '11px',
                             fontWeight: '700',
                             whiteSpace: 'nowrap',
                             borderRadius: '4px',
@@ -7753,7 +7753,7 @@
               style={{
                 background: 'white',
                 borderRadius: '8px',
-                padding: '12px',
+                padding: '8px',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                 cursor: 'pointer',
                 transition: 'all 0.2s'
@@ -7771,7 +7771,7 @@
                 fontSize: '14px',
                 fontWeight: 600,
                 color: '#2d5a3d',
-                marginBottom: '8px',
+                marginBottom: '4px',
                 textAlign: 'center'
               }}>
                 {new Date(year, monthIndex).toLocaleString('default', { month: 'long' })}
@@ -7828,13 +7828,13 @@
           <>
           <div style={{ 
             display: 'grid', 
-            gridTemplateColumns: '2fr 1fr', 
-            gap: '24px',
-            padding: '24px'
+            gridTemplateColumns: '2fr 1fr',
+            gap: '16px',
+            padding: '16px'
           }}>
             {/* Left: 12-month calendar grid */}
             <div>
-              <h3 style={{ color: '#2d5a3d', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <h3 style={{ color: '#2d5a3d', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                 {year} Calendar
                 {year === new Date().getFullYear() && (
                   <span style={{
@@ -7851,7 +7851,7 @@
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(4, 1fr)',
-                gap: '16px'
+                gap: '10px'
               }}>
                 {months.map(renderMiniMonth)}
               </div>
@@ -7859,7 +7859,7 @@
 
             {/* Right: Project Progress */}
             <div>
-              <h3 style={{ color: '#2d5a3d', marginBottom: '16px' }}>
+              <h3 style={{ color: '#2d5a3d', marginBottom: '10px' }}>
                 📊 Yearly Project Review
               </h3>
               
@@ -7882,11 +7882,11 @@
                 <div key={project.id} style={{
                   background: 'white',
                   borderRadius: '8px',
-                  padding: '16px',
-                  marginBottom: '16px',
+                  padding: '12px',
+                  marginBottom: '12px',
                   boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
                 }}>
-                  <div style={{ marginBottom: '12px' }}>
+                  <div style={{ marginBottom: '8px' }}>
                     <div style={{
                       fontSize: '16px',
                       fontWeight: 600,
