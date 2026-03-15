@@ -1331,7 +1331,8 @@
     const flattenPaths = (obj, prefix = '') => {
       const paths = [];
       for (const [k, v] of Object.entries(obj)) {
-        const p = prefix ? `${prefix}.${k}` : k;
+        const escaped = /^[_a-zA-Z][_a-zA-Z0-9]*$/.test(k) ? k : '`' + k + '`';
+        const p = prefix ? `${prefix}.${escaped}` : escaped;
         if (v !== null && v !== undefined && typeof v === 'object' && !Array.isArray(v) && !(v instanceof Date))
           paths.push(...flattenPaths(v, p));
         else paths.push(p);
