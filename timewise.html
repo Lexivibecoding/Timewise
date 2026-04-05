@@ -1977,42 +1977,46 @@
         return streak;
       };
 
-      // Calculate week comparison (current week vs last week)
+      // Calculate week comparison (selected week vs previous week)
       const getWeekComparison = () => {
-        const now = new Date();
-        const thisWeekStart = new Date(now);
-        thisWeekStart.setDate(now.getDate() - now.getDay());
-        thisWeekStart.setHours(0, 0, 0, 0);
-        
-        const lastWeekStart = new Date(thisWeekStart);
-        lastWeekStart.setDate(lastWeekStart.getDate() - 7);
-        
-        const thisWeekEvents = events.filter(e => 
-          new Date(e.startDateTime) >= thisWeekStart && e.type === 'actual'
-        );
-        
-        const lastWeekEvents = events.filter(e => {
+        const selected = new Date(currentDate);
+        const selectedWeekStart = new Date(selected);
+        selectedWeekStart.setDate(selected.getDate() - selected.getDay());
+        selectedWeekStart.setHours(0, 0, 0, 0);
+
+        const selectedWeekEnd = new Date(selectedWeekStart);
+        selectedWeekEnd.setDate(selectedWeekEnd.getDate() + 7);
+
+        const prevWeekStart = new Date(selectedWeekStart);
+        prevWeekStart.setDate(prevWeekStart.getDate() - 7);
+
+        const selectedWeekEvents = events.filter(e => {
           const date = new Date(e.startDateTime);
-          return date >= lastWeekStart && date < thisWeekStart && e.type === 'actual';
+          return date >= selectedWeekStart && date < selectedWeekEnd && e.type === 'actual';
         });
-        
-        const thisWeekHours = thisWeekEvents.reduce((sum, e) => {
+
+        const prevWeekEvents = events.filter(e => {
+          const date = new Date(e.startDateTime);
+          return date >= prevWeekStart && date < selectedWeekStart && e.type === 'actual';
+        });
+
+        const selectedWeekHours = selectedWeekEvents.reduce((sum, e) => {
           const duration = (new Date(e.endDateTime) - new Date(e.startDateTime)) / (1000 * 60 * 60);
           return sum + duration;
         }, 0);
-        
-        const lastWeekHours = lastWeekEvents.reduce((sum, e) => {
+
+        const prevWeekHours = prevWeekEvents.reduce((sum, e) => {
           const duration = (new Date(e.endDateTime) - new Date(e.startDateTime)) / (1000 * 60 * 60);
           return sum + duration;
         }, 0);
-        
-        const change = lastWeekHours > 0 
-          ? Math.round(((thisWeekHours - lastWeekHours) / lastWeekHours) * 100)
+
+        const change = prevWeekHours > 0
+          ? Math.round(((selectedWeekHours - prevWeekHours) / prevWeekHours) * 100)
           : 0;
-        
+
         return {
-          thisWeek: Math.round(thisWeekHours * 10) / 10,
-          lastWeek: Math.round(lastWeekHours * 10) / 10,
+          thisWeek: Math.round(selectedWeekHours * 10) / 10,
+          lastWeek: Math.round(prevWeekHours * 10) / 10,
           change,
           improved: change > 0
         };
@@ -3795,21 +3799,29 @@
         );
       };
 
-      // Weekly Reflection Modal
-      const WeeklyReflectionModal = () => {
+      // Weekly Reflection Modal - state lifted to App level to avoid remount issues
+      const [reflectionDraft, setReflectionDraft] = useState({ goal: '', highlight: '', lowlight: '' });
+
+      // Sync draft when modal opens or week changes
+      useEffect(() => {
+        if (showWeeklyReflectionModal) {
+          const weekKey = getWeekKey(currentDate);
+          const currentData = weeklyGoals[weekKey] || { goal: '', highlight: '', lowlight: '' };
+          setReflectionDraft(currentData);
+        }
+      }, [showWeeklyReflectionModal]);
+
+      const handleSaveReflection = () => {
         const weekKey = getWeekKey(currentDate);
-        const currentData = weeklyGoals[weekKey] || { goal: '', highlight: '', lowlight: '' };
-        const [weekData, setWeekData] = useState(currentData);
-        
-        const handleSave = () => {
-          setWeeklyGoals({
-            ...weeklyGoals,
-            [weekKey]: weekData
-          });
-          setShowWeeklyReflectionModal(false);
-          alert('✅ Weekly reflection saved!');
-        };
-        
+        setWeeklyGoals({
+          ...weeklyGoals,
+          [weekKey]: reflectionDraft
+        });
+        setShowWeeklyReflectionModal(false);
+      };
+
+      const renderWeeklyReflectionModal = () => {
+        if (!showWeeklyReflectionModal) return null;
         return (
           <div className="modal-overlay" onClick={() => setShowWeeklyReflectionModal(false)}>
             <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
@@ -3819,15 +3831,15 @@
               <p style={{ fontSize: '13px', color: '#6b9b7a', marginBottom: '20px' }}>
                 Week of {currentDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
               </p>
-              
+
               {/* Weekly Goal */}
               <div style={{ marginBottom: '20px' }}>
-                <label style={{ 
+                <label style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
-                  marginBottom: '8px', 
-                  fontWeight: '600', 
+                  marginBottom: '8px',
+                  fontWeight: '600',
                   color: '#2d5a3d',
                   fontSize: '15px'
                 }}>
@@ -3836,8 +3848,8 @@
                 </label>
                 <input
                   type="text"
-                  value={weekData.goal}
-                  onChange={(e) => setWeekData({ ...weekData, goal: e.target.value })}
+                  value={reflectionDraft.goal}
+                  onChange={(e) => setReflectionDraft({ ...reflectionDraft, goal: e.target.value })}
                   placeholder="What do you want to achieve this week?"
                   style={{
                     width: '100%',
@@ -3851,15 +3863,15 @@
                   Make it specific and actionable
                 </p>
               </div>
-              
+
               {/* Highlight */}
               <div style={{ marginBottom: '20px' }}>
-                <label style={{ 
+                <label style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
-                  marginBottom: '8px', 
-                  fontWeight: '600', 
+                  marginBottom: '8px',
+                  fontWeight: '600',
                   color: '#2d5a3d',
                   fontSize: '15px'
                 }}>
@@ -3867,8 +3879,8 @@
                   <span>Week Highlight</span>
                 </label>
                 <textarea
-                  value={weekData.highlight}
-                  onChange={(e) => setWeekData({ ...weekData, highlight: e.target.value })}
+                  value={reflectionDraft.highlight}
+                  onChange={(e) => setReflectionDraft({ ...reflectionDraft, highlight: e.target.value })}
                   placeholder="What went well? What are you proud of?"
                   rows={3}
                   style={{
@@ -3882,15 +3894,15 @@
                   }}
                 />
               </div>
-              
+
               {/* Lowlight */}
               <div style={{ marginBottom: '20px' }}>
-                <label style={{ 
+                <label style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
-                  marginBottom: '8px', 
-                  fontWeight: '600', 
+                  marginBottom: '8px',
+                  fontWeight: '600',
                   color: '#2d5a3d',
                   fontSize: '15px'
                 }}>
@@ -3898,8 +3910,8 @@
                   <span>Week Challenge</span>
                 </label>
                 <textarea
-                  value={weekData.lowlight}
-                  onChange={(e) => setWeekData({ ...weekData, lowlight: e.target.value })}
+                  value={reflectionDraft.lowlight}
+                  onChange={(e) => setReflectionDraft({ ...reflectionDraft, lowlight: e.target.value })}
                   placeholder="What challenges did you face? What can you learn?"
                   rows={3}
                   style={{
@@ -3913,7 +3925,7 @@
                   }}
                 />
               </div>
-              
+
               <div style={{
                 background: '#fff3e0',
                 padding: '12px',
@@ -3925,9 +3937,9 @@
                   💡 <strong>Tip:</strong> Reflect honestly. Both wins and challenges help you grow.
                 </p>
               </div>
-              
+
               <div className="modal-actions">
-                <button className="btn-primary" onClick={handleSave}>
+                <button className="btn-primary" onClick={handleSaveReflection}>
                   💾 Save Reflection
                 </button>
                 <button className="btn-secondary" onClick={() => setShowWeeklyReflectionModal(false)}>
@@ -6298,6 +6310,14 @@
         const hasReflection = weekData.goal || weekData.highlight || weekData.lowlight;
         const comparison = getWeekComparison();
 
+        // Check if viewing the current real week
+        const today = new Date();
+        const todayWeekStart = new Date(today);
+        todayWeekStart.setDate(today.getDate() - today.getDay());
+        todayWeekStart.setHours(0, 0, 0, 0);
+        const isCurrentWeek = weekStart.toDateString() === todayWeekStart.toDateString();
+        const weekLabel = isCurrentWeek ? 'This Week' : `Week of ${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+
         // Time slots for the week view (6am to 10pm)
         const hours = Array.from({ length: 17 }, (_, i) => i + 6);
 
@@ -6460,7 +6480,7 @@
                 {/* Week Statistics */}
                 <div style={{ background: 'white', borderRadius: '12px', padding: '20px', border: '2px solid #e0e7e0' }}>
                   <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#2d5a3d', margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span>📊</span><span>This Week</span>
+                    <span>📊</span><span>{weekLabel}</span>
                   </h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     <div style={{ background: '#f5f7f5', padding: '12px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -6468,7 +6488,7 @@
                       <span style={{ fontSize: '18px', fontWeight: '700', color: '#4a7c59' }}>{comparison.thisWeek.toFixed(1)}h</span>
                     </div>
                     <div style={{ background: '#f5f7f5', padding: '12px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '13px', color: '#6b9b7a' }}>Last Week</span>
+                      <span style={{ fontSize: '13px', color: '#6b9b7a' }}>{isCurrentWeek ? 'Last Week' : 'Previous Week'}</span>
                       <span style={{ fontSize: '18px', fontWeight: '700', color: '#9e9e9e' }}>{comparison.lastWeek.toFixed(1)}h</span>
                     </div>
                     {comparison.lastWeek > 0 && (
@@ -8470,7 +8490,7 @@
           {showExportModal && <ExportModal />}
           {showGoogleSetupModal && <GoogleSetupModal />}
           {showJournalModal && <JournalModal />}
-          {showWeeklyReflectionModal && <WeeklyReflectionModal />}
+          {renderWeeklyReflectionModal()}
           {showHabitModal && <HabitModal />}
 
           {/* Floating Action Bar for batch operations */}
