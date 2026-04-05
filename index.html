@@ -1634,6 +1634,9 @@
       const [showProjectModal, setShowProjectModal] = useState(false);
       const [showAnalytics, setShowAnalytics] = useState(false);
       const [showSyncModal, setShowSyncModal] = useState(false);
+      const [pushRangeMode, setPushRangeMode] = useState('week'); // 'week', 'month', 'custom'
+      const [pushCustomStart, setPushCustomStart] = useState('');
+      const [pushCustomEnd, setPushCustomEnd] = useState('');
       const [showCompletionModal, setShowCompletionModal] = useState(false);
       const [showExportModal, setShowExportModal] = useState(false);
       const [showGoogleSetupModal, setShowGoogleSetupModal] = useState(false);
@@ -4248,6 +4251,33 @@
           return { weekStart: monday, weekEnd: sunday };
         };
 
+        const getPushBounds = () => {
+          if (pushRangeMode === 'week') {
+            const { weekStart, weekEnd } = getWeekBounds();
+            return { start: weekStart, end: weekEnd };
+          } else if (pushRangeMode === 'month') {
+            const d = new Date(currentDate);
+            const monthStart = new Date(d.getFullYear(), d.getMonth(), 1);
+            monthStart.setHours(0, 0, 0, 0);
+            const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+            monthEnd.setHours(23, 59, 59, 999);
+            return { start: monthStart, end: monthEnd };
+          } else {
+            const start = new Date(pushCustomStart);
+            start.setHours(0, 0, 0, 0);
+            const end = new Date(pushCustomEnd);
+            end.setHours(23, 59, 59, 999);
+            return { start, end };
+          }
+        };
+
+        const formatPushRange = () => {
+          const { start, end } = getPushBounds();
+          if (isNaN(start.getTime()) || isNaN(end.getTime())) return 'Select a date range';
+          const opts = { month: 'short', day: 'numeric' };
+          return `${start.toLocaleDateString('en-US', opts)} - ${end.toLocaleDateString('en-US', { ...opts, year: 'numeric' })}`;
+        };
+
         const formatWeekRange = () => {
           const { weekStart, weekEnd } = getWeekBounds();
           const opts = { month: 'short', day: 'numeric' };
@@ -4260,20 +4290,20 @@
             return;
           }
 
+          const { start: pushStart, end: pushEnd } = getPushBounds();
+          if (isNaN(pushStart.getTime()) || isNaN(pushEnd.getTime())) {
+            alert('Please select a valid date range.');
+            return;
+          }
+
           setSyncStatus('syncing');
 
           try {
-            // Calculate current week boundaries (Mon-Sun)
-            const { weekStart, weekEnd } = getWeekBounds();
-
-            // Fetch existing Google events scoped to this week only
-            const timeMin = weekStart;
-            const timeMax = weekEnd;
-
+            // Fetch existing Google events scoped to selected range
             const fetchResponse = await fetch(
               `https://www.googleapis.com/calendar/v3/calendars/primary/events?` +
-              `timeMin=${timeMin.toISOString()}&` +
-              `timeMax=${timeMax.toISOString()}&` +
+              `timeMin=${pushStart.toISOString()}&` +
+              `timeMax=${pushEnd.toISOString()}&` +
               `singleEvents=true&` +
               `orderBy=startTime`,
               {
@@ -4286,11 +4316,11 @@
             const existingData = await fetchResponse.json();
             const existingGoogleEvents = existingData.items || [];
 
-            // Get planned events for the current week only
+            // Get planned events for the selected range
             const plannedEvents = events.filter(e => {
               if (e.type !== 'planned') return false;
               const eventTime = new Date(e.startDateTime).getTime();
-              return eventTime >= weekStart.getTime() && eventTime <= weekEnd.getTime();
+              return eventTime >= pushStart.getTime() && eventTime <= pushEnd.getTime();
             });
             let synced = 0;
             let skipped = 0;
@@ -4368,7 +4398,7 @@
             }
 
             setSyncStatus('connected');
-            alert(`Sync to Google complete!\n\n📅 Week: ${formatWeekRange()}\n✅ Synced ${synced} new events\n⏭️ Skipped ${skipped} existing events\n📊 Total: ${plannedEvents.length} planned events this week`);
+            alert(`Sync to Google complete!\n\n📅 Range: ${formatPushRange()}\n✅ Synced ${synced} new events\n⏭️ Skipped ${skipped} existing events\n📊 Total: ${plannedEvents.length} planned events in range`);
           } catch (error) {
             console.error('Sync error:', error);
             setSyncStatus('connected');
@@ -4976,35 +5006,121 @@
                     </div>
                   </div>
 
+                  {/* Push Range Selector */}
+                  <div style={{
+                    background: '#f0f9f4',
+                    padding: '16px',
+                    borderRadius: '10px',
+                    marginBottom: '16px',
+                    border: '2px solid #c8e6c9'
+                  }}>
+                    <div style={{ fontSize: '13px', fontWeight: '600', color: '#2d5a3d', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>📅</span><span>Push Range</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
+                      {[
+                        { value: 'week', label: 'This Week' },
+                        { value: 'month', label: 'This Month' },
+                        { value: 'custom', label: 'Custom' }
+                      ].map(opt => (
+                        <button
+                          key={opt.value}
+                          onClick={() => setPushRangeMode(opt.value)}
+                          style={{
+                            flex: 1,
+                            padding: '8px 4px',
+                            borderRadius: '6px',
+                            border: pushRangeMode === opt.value ? '2px solid #4a7c59' : '2px solid #e0e7e0',
+                            background: pushRangeMode === opt.value ? '#4a7c59' : 'white',
+                            color: pushRangeMode === opt.value ? 'white' : '#2d5a3d',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                    {pushRangeMode === 'custom' && (
+                      <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: '11px', color: '#6b9b7a', fontWeight: '600', display: 'block', marginBottom: '4px' }}>From</label>
+                          <input
+                            type="date"
+                            value={pushCustomStart}
+                            onChange={e => setPushCustomStart(e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '8px',
+                              border: '2px solid #e0f0e8',
+                              borderRadius: '6px',
+                              fontSize: '13px',
+                              color: '#2d5a3d'
+                            }}
+                          />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: '11px', color: '#6b9b7a', fontWeight: '600', display: 'block', marginBottom: '4px' }}>To</label>
+                          <input
+                            type="date"
+                            value={pushCustomEnd}
+                            onChange={e => setPushCustomEnd(e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '8px',
+                              border: '2px solid #e0f0e8',
+                              borderRadius: '6px',
+                              fontSize: '13px',
+                              color: '#2d5a3d'
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    <div style={{
+                      background: 'white',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      textAlign: 'center',
+                      fontSize: '13px',
+                      color: '#2d5a3d',
+                      border: '1px dashed #6b9b7a'
+                    }}>
+                      📅 <strong>{formatPushRange()}</strong>
+                    </div>
+                  </div>
+
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
-                    <button 
-                      className="btn-primary" 
+                    <button
+                      className="btn-primary"
                       onClick={syncBothWays}
                       style={{ width: '100%', justifyContent: 'center' }}
                       disabled={syncStatus === 'syncing'}
                     >
                       {syncStatus === 'syncing' ? '⏳ Syncing...' : '🔄 Two-Way Sync'}
                     </button>
-                    <button 
-                      className="btn-secondary" 
+                    <button
+                      className="btn-secondary"
                       onClick={syncToGoogle}
                       style={{ width: '100%', justifyContent: 'center' }}
-                      disabled={syncStatus === 'syncing'}
+                      disabled={syncStatus === 'syncing' || (pushRangeMode === 'custom' && (!pushCustomStart || !pushCustomEnd))}
                     >
-                      ⬆️ Push This Week to Google
+                      {syncStatus === 'syncing' ? '⏳ Pushing...' : `⬆️ Push to Google`}
                     </button>
-                    <button 
-                      className="btn-secondary" 
+                    <button
+                      className="btn-secondary"
                       onClick={syncFromGoogle}
                       style={{ width: '100%', justifyContent: 'center' }}
                       disabled={syncStatus === 'syncing'}
                     >
                       ⬇️ Pull from Google
                     </button>
-                    <button 
+                    <button
                       onClick={syncFromGoogleMaster}
-                      style={{ 
-                        width: '100%', 
+                      style={{
+                        width: '100%',
                         justifyContent: 'center',
                         padding: '10px 20px',
                         background: 'linear-gradient(135deg, #4a7c59 0%, #3d6b4a 100%)',
@@ -5033,19 +5149,6 @@
                     >
                       🎯 Google Master Sync
                     </button>
-                  </div>
-
-                  <div style={{
-                    background: '#f0f9f4',
-                    padding: '10px 12px',
-                    borderRadius: '8px',
-                    marginBottom: '16px',
-                    textAlign: 'center',
-                    fontSize: '13px',
-                    color: '#2d5a3d',
-                    border: '1px dashed #6b9b7a'
-                  }}>
-                    📅 Push scope: <strong>{formatWeekRange()}</strong>
                   </div>
 
                   <div style={{
